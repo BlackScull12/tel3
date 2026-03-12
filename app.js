@@ -46,10 +46,12 @@ const provider = new GoogleAuthProvider();
 
 const googleBtn = document.getElementById("googleLogin");
 const usersList = document.getElementById("usersList");
+
 const chatBox = document.getElementById("chatBox");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const chatUser = document.getElementById("chatUser");
+
 
 let currentUser=null;
 let currentFriend=null;
@@ -95,7 +97,7 @@ await updateDoc(doc(db,"users",user.uid),{
 online:true
 });
 
-/* UPDATE LAST SEEN WHEN LEAVING */
+/* LAST SEEN */
 
 window.addEventListener("beforeunload",async()=>{
 
@@ -134,11 +136,52 @@ ${user.name}
 <span style="font-size:12px;color:gray">
 ${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
 </span>
+<span id="unread-${docu.id}" style="color:red;margin-left:10px"></span>
 `;
 
 div.onclick=()=>handleUserClick(docu.id,user.name);
 
 usersList.appendChild(div);
+
+/* LISTEN UNREAD */
+
+listenUnread(docu.id);
+
+});
+
+}
+
+
+/* UNREAD MESSAGE COUNTER */
+
+function listenUnread(uid){
+
+const id=[currentUser.uid,uid].sort().join("_");
+
+const q=query(
+collection(db,"chats",id,"messages"),
+where("read","==",false)
+);
+
+onSnapshot(q,(snap)=>{
+
+let count=0;
+
+snap.forEach(d=>{
+
+const m=d.data();
+
+if(m.sender===uid) count++;
+
+});
+
+const badge=document.getElementById("unread-"+uid);
+
+if(badge){
+
+badge.innerText=count>0?"("+count+")":"";
+
+}
 
 });
 
@@ -218,7 +261,7 @@ alert("Friend request sent");
 
 /* OPEN CHAT */
 
-async function openChat(uid,name){
+function openChat(uid,name){
 
 currentFriend=uid;
 chatID=[currentUser.uid,uid].sort().join("_");
@@ -226,13 +269,12 @@ chatID=[currentUser.uid,uid].sort().join("_");
 chatUser.innerText=name;
 
 listenMessages();
-
 listenFriendStatus();
 
 }
 
 
-/* FRIEND ONLINE STATUS */
+/* FRIEND STATUS */
 
 function listenFriendStatus(){
 
@@ -310,11 +352,9 @@ chatBox.scrollTop=chatBox.scrollHeight;
 }
 
 
-/* SEND MESSAGE */
+/* SEND MESSAGE FUNCTION */
 
-if(sendBtn){
-
-sendBtn.onclick=async()=>{
+async function sendMessage(){
 
 if(!input.value.trim()) return;
 
@@ -330,7 +370,32 @@ read:false
 
 input.value="";
 
-};
+}
+
+
+/* SEND BUTTON */
+
+if(sendBtn){
+
+sendBtn.onclick=sendMessage;
+
+}
+
+
+/* ENTER KEY SEND */
+
+if(input){
+
+input.addEventListener("keypress",(e)=>{
+
+if(e.key==="Enter"){
+
+e.preventDefault();
+sendMessage();
+
+}
+
+});
 
 }
 ```
