@@ -1,124 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Admin Panel</title>
+<title>Admin Spy Panel</title>
 
 <style>
 
 body{
-margin:0;
 font-family:Arial;
 background:#111;
 color:white;
+margin:0;
 }
 
 h1{
 text-align:center;
-padding:15px;
 background:#222;
-margin:0;
+padding:10px;
 }
 
-.adminContainer{
+.container{
 display:flex;
 height:90vh;
 }
 
-.usersPanel{
+.sidebar{
 width:30%;
 background:#1a1a1a;
 overflow-y:auto;
-border-right:1px solid #333;
 }
 
-.userRow{
-padding:12px;
+.user{
+padding:10px;
 border-bottom:1px solid #333;
 cursor:pointer;
 }
 
-.userRow:hover{
-background:#2a2a2a;
+.user:hover{
+background:#333;
 }
 
-.chatPanel{
+.chat{
 flex:1;
-display:flex;
-flex-direction:column;
-}
-
-.chatHeader{
-padding:12px;
-background:#222;
-border-bottom:1px solid #333;
-font-weight:bold;
-}
-
-.chatArea{
-flex:1;
-overflow-y:auto;
-padding:15px;
 background:black;
-display:flex;
-flex-direction:column;
+padding:10px;
+overflow-y:auto;
 }
 
 .msg{
-padding:8px;
-margin:4px 0;
-border-radius:6px;
-max-width:60%;
-}
-
-.sender{
-background:white;
+margin:5px 0;
+padding:6px;
+background:#eee;
 color:black;
-align-self:flex-end;
-}
-
-.receiver{
-background:pink;
-color:black;
-align-self:flex-start;
-}
-
-.controls{
-margin-top:6px;
-}
-
-button{
-padding:4px 8px;
-margin-right:5px;
-cursor:pointer;
+border-radius:5px;
 }
 
 </style>
 </head>
 
-
 <body>
 
-<h1>Admin Panel</h1>
+<h1>ADMIN SPY MODE</h1>
 
-<div class="adminContainer">
+<div class="container">
 
-<!-- USERS -->
-<div class="usersPanel" id="usersPanel"></div>
+<div class="sidebar" id="chatList"></div>
 
-<!-- CHAT -->
-<div class="chatPanel">
-
-<div class="chatHeader" id="chatTitle">
-Select a user to view chats
-</div>
-
-<div class="chatArea" id="chatArea"></div>
+<div class="chat" id="chatBox"></div>
 
 </div>
-
-</div>
-
 
 <script type="module">
 
@@ -127,133 +76,71 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebas
 import {
 getFirestore,
 collection,
-getDocs,
-doc,
-updateDoc,
 query,
-collectionGroup,
-where,
+orderBy,
 onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-
-const firebaseConfig = {
-apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
-authDomain: "chatgithub-e838d.firebaseapp.com",
-projectId: "chatgithub-e838d",
-storageBucket: "chatgithub-e838d.firebasestorage.app",
-messagingSenderId: "755589384017",
-appId: "1:755589384017:web:6af4c6d223d646cf36f570"
+const firebaseConfig={
+apiKey:"YOUR_KEY",
+authDomain:"YOUR_DOMAIN",
+projectId:"YOUR_ID"
 };
 
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const chatList=document.getElementById("chatList");
+const chatBox=document.getElementById("chatBox");
 
+/* LOAD ALL CHATS */
 
-const usersPanel = document.getElementById("usersPanel");
-const chatArea = document.getElementById("chatArea");
-const chatTitle = document.getElementById("chatTitle");
+onSnapshot(collection(db,"chats"),(snap)=>{
 
-let selectedUser = null;
-
-
-/* LOAD USERS */
-
-async function loadUsers(){
-
-usersPanel.innerHTML="";
-
-const snap = await getDocs(collection(db,"users"));
+chatList.innerHTML="";
 
 snap.forEach(docu=>{
 
-const user = docu.data();
-const uid = docu.id;
+const div=document.createElement("div");
 
-const div = document.createElement("div");
-div.className="userRow";
+div.className="user";
+div.innerText=docu.id;
 
-div.innerHTML = `
-<b>${user.name}</b>
-<div class="controls">
-<button onclick="viewChats('${uid}','${user.name}')">View Chats</button>
-<button onclick="banUser('${uid}')">Ban</button>
-<button onclick="unbanUser('${uid}')">Unban</button>
-</div>
-`;
+div.onclick=()=>watchChat(docu.id);
 
-usersPanel.appendChild(div);
+chatList.appendChild(div);
 
 });
 
-}
+});
 
-loadUsers();
+function watchChat(chatID){
 
-
-/* VIEW USER CHATS */
-
-window.viewChats = function(uid,name){
-
-selectedUser = uid;
-
-chatTitle.innerText = "Chats of " + name;
-
-chatArea.innerHTML="Loading...";
-
-const q = query(
-collectionGroup(db,"messages"),
-where("sender","==",uid)
+const q=query(
+collection(db,"chats",chatID,"messages"),
+orderBy("time")
 );
 
 onSnapshot(q,(snap)=>{
 
-chatArea.innerHTML="";
+chatBox.innerHTML="";
 
-snap.forEach(docu=>{
+snap.forEach(d=>{
 
-const msg = docu.data();
+const m=d.data();
 
-const div = document.createElement("div");
+const div=document.createElement("div");
+div.className="msg";
 
-div.className="msg sender";
+div.innerText=m.sender+" : "+m.text;
 
-div.innerText = msg.text;
-
-chatArea.appendChild(div);
-
-});
+chatBox.appendChild(div);
 
 });
 
-};
-
-
-/* BAN USER */
-
-window.banUser = async function(uid){
-
-await updateDoc(doc(db,"users",uid),{
-banned:true
 });
 
-alert("User banned");
-
-};
-
-
-/* UNBAN USER */
-
-window.unbanUser = async function(uid){
-
-await updateDoc(doc(db,"users",uid),{
-banned:false
-});
-
-alert("User unbanned");
-
-};
+}
 
 </script>
 
