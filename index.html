@@ -1,0 +1,32 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chat App</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="login">
+
+<h1>💬 Chat App</h1>
+
+<button id="googleLogin">Login with Google</button>
+
+<br><br>
+
+<button onclick="openAdmin()">ADMIN</button>
+
+<script>
+function openAdmin(){
+const pass = prompt("Enter admin password");
+if(pass === "2309"){
+window.location.href = "admin.html";
+}else{
+alert("Wrong password");
+}
+}
+</script>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

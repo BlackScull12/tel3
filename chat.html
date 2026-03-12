@@ -1,0 +1,42 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chat</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topBar">
+<span>Users</span>
+<span id="bell">🔔 <span id="reqCount"></span></span>
+</div>
+
+<div class="container">
+
+<div class="users" id="usersList"></div>
+
+<div class="chat">
+
+<div class="chatHeader">
+<span id="chatUser">Select a friend</span>
+</div>
+
+<div class="chatArea" id="chatBox"></div>
+
+<div class="inputArea">
+<input id="messageInput" placeholder="Type message">
+<button id="sendBtn">Send</button>
+</div>
+
+</div>
+
+</div>
+
+<div id="requestsPanel" class="requestsPanel"></div>
+
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
