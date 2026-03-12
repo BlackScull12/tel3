@@ -4,8 +4,7 @@ import {
 getAuth,
 GoogleAuthProvider,
 signInWithPopup,
-onAuthStateChanged,
-signOut
+onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
 import {
@@ -20,11 +19,11 @@ query,
 where,
 onSnapshot,
 updateDoc,
-orderBy
+orderBy,
+collectionGroup
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-
-/* ---------------- FIREBASE CONFIG ---------------- */
+/* FIREBASE CONFIG */
 
 const firebaseConfig = {
 apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
@@ -40,11 +39,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-
-/* ---------------- DOM ELEMENTS ---------------- */
+/* DOM */
 
 const googleBtn = document.getElementById("googleLogin");
-
 const usersList = document.getElementById("usersList");
 
 const bell = document.getElementById("bell");
@@ -59,16 +56,13 @@ let currentUser = null;
 let currentFriend = null;
 let chatID = null;
 
+/* LOGIN */
 
-/* ---------------- LOGIN ---------------- */
+if(googleBtn){
 
-if (googleBtn) {
+googleBtn.onclick = async ()=>{
 
-googleBtn.onclick = async () => {
-
-try {
-
-const res = await signInWithPopup(auth, provider);
+const res = await signInWithPopup(auth,provider);
 const user = res.user;
 
 await setDoc(doc(db,"users",user.uid),{
@@ -77,39 +71,30 @@ email:user.email,
 banned:false
 },{merge:true});
 
-window.location = "chat.html";
-
-} catch(err){
-alert(err.message);
-}
+window.location="chat.html";
 
 };
 
 }
 
-
-/* ---------------- AUTH STATE ---------------- */
+/* AUTH STATE */
 
 onAuthStateChanged(auth, async(user)=>{
 
 if(!user) return;
 
-currentUser = user;
+currentUser=user;
 
-/* CHECK BAN STATUS */
+/* BAN CHECK */
 
 const userDoc = await getDoc(doc(db,"users",user.uid));
 
 if(userDoc.exists()){
 
-const data = userDoc.data();
-
-if(data.banned){
+if(userDoc.data().banned){
 
 alert("You are banned by admin");
-
-signOut(auth);
-
+auth.signOut();
 return;
 
 }
@@ -122,8 +107,7 @@ listenRequests();
 
 });
 
-
-/* ---------------- LOAD USERS ---------------- */
+/* LOAD USERS */
 
 async function loadUsers(){
 
@@ -133,15 +117,15 @@ const snap = await getDocs(collection(db,"users"));
 
 snap.forEach(docu=>{
 
-if(docu.id === currentUser.uid) return;
+if(docu.id===currentUser.uid) return;
 
 const user = docu.data();
 
-const div = document.createElement("div");
+const div=document.createElement("div");
 div.className="userRow";
-div.innerText = user.name;
+div.innerText=user.name;
 
-div.onclick = ()=>handleUserClick(docu.id,user.name);
+div.onclick=()=>handleUserClick(docu.id,user.name);
 
 usersList.appendChild(div);
 
@@ -149,31 +133,28 @@ usersList.appendChild(div);
 
 }
 
-
-/* ---------------- HANDLE USER CLICK ---------------- */
+/* USER CLICK */
 
 async function handleUserClick(uid,name){
 
-/* check if already friends */
-
-const q = query(
+const q=query(
 collection(db,"friendRequests"),
 where("status","==","accepted")
 );
 
-const snap = await getDocs(q);
+const snap=await getDocs(q);
 
-let isFriend = false;
+let isFriend=false;
 
 snap.forEach(d=>{
 
-const r = d.data();
+const r=d.data();
 
 if(
-(r.from === currentUser.uid && r.to === uid) ||
-(r.from === uid && r.to === currentUser.uid)
+(r.from===currentUser.uid && r.to===uid) ||
+(r.from===uid && r.to===currentUser.uid)
 ){
-isFriend = true;
+isFriend=true;
 }
 
 });
@@ -190,22 +171,21 @@ sendFriendRequest(uid);
 
 }
 
-
-/* ---------------- SEND FRIEND REQUEST ---------------- */
+/* SEND FRIEND REQUEST */
 
 async function sendFriendRequest(uid){
 
-const q = query(
+const q=query(
 collection(db,"friendRequests"),
 where("from","==",currentUser.uid),
 where("to","==",uid)
 );
 
-const snap = await getDocs(q);
+const snap=await getDocs(q);
 
 if(!snap.empty){
 
-alert("Friend request already sent");
+alert("Request already sent");
 return;
 
 }
@@ -220,20 +200,19 @@ alert("Friend request sent");
 
 }
 
-
-/* ---------------- LISTEN FRIEND REQUESTS ---------------- */
+/* LISTEN REQUESTS */
 
 function listenRequests(){
 
-const q = query(
+const q=query(
 collection(db,"friendRequests"),
 where("to","==",currentUser.uid),
 where("status","==","pending")
 );
 
-onSnapshot(q, async(snap)=>{
+onSnapshot(q,async(snap)=>{
 
-if(reqCount) reqCount.innerText = snap.size || "";
+if(reqCount) reqCount.innerText=snap.size||"";
 
 if(!requestsPanel) return;
 
@@ -241,16 +220,14 @@ requestsPanel.innerHTML="";
 
 for(const docu of snap.docs){
 
-const data = docu.data();
+const data=docu.data();
 
-/* get sender name */
+const senderDoc=await getDoc(doc(db,"users",data.from));
+const senderName=senderDoc.data().name;
 
-const senderDoc = await getDoc(doc(db,"users",data.from));
-const senderName = senderDoc.exists() ? senderDoc.data().name : data.from;
+const div=document.createElement("div");
 
-const div = document.createElement("div");
-
-div.innerHTML =
+div.innerHTML=
 `Request from ${senderName}
 <button data-id="${docu.id}" class="accept">✔</button>
 <button data-id="${docu.id}" class="decline">✖</button>`;
@@ -263,42 +240,21 @@ requestsPanel.appendChild(div);
 
 }
 
-
-/* ---------------- BELL CLICK ---------------- */
-
-if(bell){
-
-bell.onclick = ()=>{
-
-requestsPanel.style.display =
-requestsPanel.style.display === "block" ? "none" : "block";
-
-};
-
-}
-
-
-/* ---------------- ACCEPT / DECLINE ---------------- */
+/* ACCEPT / DECLINE */
 
 document.addEventListener("click",async(e)=>{
 
-if(e.target.className === "accept"){
+if(e.target.className==="accept"){
 
-const id = e.target.dataset.id;
-
-await updateDoc(doc(db,"friendRequests",id),{
+await updateDoc(doc(db,"friendRequests",e.target.dataset.id),{
 status:"accepted"
 });
 
-alert("Friend added");
-
 }
 
-if(e.target.className === "decline"){
+if(e.target.className==="decline"){
 
-const id = e.target.dataset.id;
-
-await updateDoc(doc(db,"friendRequests",id),{
+await updateDoc(doc(db,"friendRequests",e.target.dataset.id),{
 status:"declined"
 });
 
@@ -306,69 +262,60 @@ status:"declined"
 
 });
 
-
-/* ---------------- OPEN CHAT ---------------- */
+/* OPEN CHAT */
 
 function openChat(uid,name){
 
-const chatUser = document.getElementById("chatUser");
+document.getElementById("chatUser").innerText=name;
 
-if(chatUser) chatUser.innerText = name;
+currentFriend=uid;
 
-currentFriend = uid;
-
-chatID = [currentUser.uid,uid].sort().join("_");
+chatID=[currentUser.uid,uid].sort().join("_");
 
 listenMessages();
 
 }
 
-
-/* ---------------- LISTEN MESSAGES ---------------- */
+/* LISTEN MESSAGES */
 
 function listenMessages(){
 
-const q = query(
+const q=query(
 collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
 onSnapshot(q,(snap)=>{
 
-if(!chatBox) return;
-
 chatBox.innerHTML="";
 
 snap.forEach(d=>{
 
-const m = d.data();
+const m=d.data();
 
-const div = document.createElement("div");
+const div=document.createElement("div");
 
-div.className = m.sender === currentUser.uid ? "sender" : "receiver";
+div.className=m.sender===currentUser.uid?"sender":"receiver";
 
-div.innerText = m.text;
+div.innerText=m.text;
 
 chatBox.appendChild(div);
 
 });
 
-chatBox.scrollTop = chatBox.scrollHeight;
+chatBox.scrollTop=chatBox.scrollHeight;
 
 });
 
 }
 
-
-/* ---------------- SEND MESSAGE ---------------- */
+/* SEND MESSAGE */
 
 if(sendBtn){
 
-sendBtn.onclick = async()=>{
+sendBtn.onclick=async()=>{
 
 if(!currentFriend) return;
-
-if(!input.value.trim()) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 text:input.value,
