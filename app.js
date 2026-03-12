@@ -1,6 +1,4 @@
 
-/* FIREBASE IMPORTS */
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 
 import {
@@ -37,7 +35,7 @@ appId: "1:755589384017:web:6af4c6d223d646cf36f570"
 };
 
 
-/* INITIALIZE */
+/* INITIALIZE FIREBASE */
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -75,24 +73,18 @@ try {
 const result = await signInWithPopup(auth, provider);
 const user = result.user;
 
-/* SAVE USER */
-
 await setDoc(doc(db, "users", user.uid), {
-
 name: user.displayName,
 email: user.email,
 online: true,
 lastSeen: Date.now()
-
 }, { merge: true });
-
-/* REDIRECT */
 
 window.location.href = "chat.html";
 
 } catch (error) {
 
-console.error("Login Error:", error);
+console.error(error);
 alert("Google login failed");
 
 }
@@ -110,13 +102,14 @@ if (!user) return;
 
 currentUser = user;
 
-/* UPDATE ONLINE */
+/* SET USER ONLINE */
 
 await setDoc(doc(db, "users", user.uid), {
 online: true
 }, { merge: true });
 
-/* LAST SEEN */
+
+/* UPDATE LAST SEEN WHEN LEAVING */
 
 window.addEventListener("beforeunload", () => {
 
@@ -127,18 +120,15 @@ lastSeen: Date.now()
 
 });
 
-/* LOAD USERS IF PAGE HAS USER LIST */
 
-if (usersList) {
+/* LOAD USERS */
 
-loadUsers();
-
-}
+if (usersList) loadUsers();
 
 });
 
 
-/* LOAD USERS */
+/* LOAD USERS LIST */
 
 async function loadUsers() {
 
@@ -163,9 +153,11 @@ ${user.online ? "🟢 Online" : "Last seen " + new Date(user.lastSeen).toLocaleT
 <span id="unread-${docu.id}" style="color:red;margin-left:8px"></span>
 `;
 
-div.onclick = () => handleUserClick(docu.id, user.name);
+div.onclick = () => openChat(docu.id, user.name);
 
 usersList.appendChild(div);
+
+/* UNREAD MESSAGE COUNTER */
 
 listenUnread(docu.id);
 
@@ -210,77 +202,6 @@ badge.innerText = count > 0 ? "(" + count + ")" : "";
 }
 
 
-/* FRIEND CLICK */
-
-async function handleUserClick(uid, name) {
-
-const q = query(
-collection(db, "friendRequests"),
-where("status", "==", "accepted")
-);
-
-const snap = await getDocs(q);
-
-let isFriend = false;
-
-snap.forEach((d) => {
-
-const r = d.data();
-
-if (
-(r.from === currentUser.uid && r.to === uid) ||
-(r.from === uid && r.to === currentUser.uid)
-) {
-isFriend = true;
-}
-
-});
-
-if (isFriend) {
-
-openChat(uid, name);
-
-} else {
-
-sendFriendRequest(uid);
-
-}
-
-}
-
-
-/* SEND FRIEND REQUEST */
-
-async function sendFriendRequest(uid) {
-
-const q = query(
-collection(db, "friendRequests"),
-where("from", "==", currentUser.uid),
-where("to", "==", uid)
-);
-
-const snap = await getDocs(q);
-
-if (!snap.empty) {
-
-alert("Friend request already sent");
-return;
-
-}
-
-await addDoc(collection(db, "friendRequests"), {
-
-from: currentUser.uid,
-to: uid,
-status: "pending"
-
-});
-
-alert("Friend request sent");
-
-}
-
-
 /* OPEN CHAT */
 
 function openChat(uid, name) {
@@ -296,7 +217,7 @@ listenMessages();
 }
 
 
-/* FRIEND STATUS */
+/* FRIEND ONLINE STATUS */
 
 function listenFriendStatus() {
 
@@ -321,7 +242,7 @@ chatUser.innerText = data.name + " (" + status + ")";
 }
 
 
-/* LISTEN MESSAGES */
+/* LISTEN FOR MESSAGES */
 
 function listenMessages() {
 
@@ -369,7 +290,7 @@ ${new Date(m.time).toLocaleTimeString()} ${status}
 
 chatBox.appendChild(div);
 
-/* MARK READ */
+/* MARK MESSAGE READ */
 
 if (m.sender !== currentUser.uid && !m.read) {
 
