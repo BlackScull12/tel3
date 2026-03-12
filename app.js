@@ -1,3 +1,4 @@
+```javascript
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 
 import {
@@ -19,19 +20,21 @@ query,
 where,
 onSnapshot,
 updateDoc,
-orderBy,
-collectionGroup
+orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-/* FIREBASE CONFIG */
+
+/* FIREBASE */
 
 const firebaseConfig = {
+
 apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
 authDomain: "chatgithub-e838d.firebaseapp.com",
 projectId: "chatgithub-e838d",
 storageBucket: "chatgithub-e838d.firebasestorage.app",
 messagingSenderId: "755589384017",
 appId: "1:755589384017:web:6af4c6d223d646cf36f570"
+
 };
 
 const app = initializeApp(firebaseConfig);
@@ -39,36 +42,37 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
+
 /* DOM */
 
 const googleBtn = document.getElementById("googleLogin");
 const usersList = document.getElementById("usersList");
-
-const bell = document.getElementById("bell");
-const reqCount = document.getElementById("reqCount");
-const requestsPanel = document.getElementById("requestsPanel");
-
 const chatBox = document.getElementById("chatBox");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
+const chatUser = document.getElementById("chatUser");
 
-let currentUser = null;
-let currentFriend = null;
-let chatID = null;
+let currentUser=null;
+let currentFriend=null;
+let chatID=null;
+
 
 /* LOGIN */
 
 if(googleBtn){
 
-googleBtn.onclick = async ()=>{
+googleBtn.onclick=async()=>{
 
-const res = await signInWithPopup(auth,provider);
-const user = res.user;
+const res=await signInWithPopup(auth,provider);
+const user=res.user;
 
 await setDoc(doc(db,"users",user.uid),{
+
 name:user.displayName,
 email:user.email,
-banned:false
+online:true,
+lastSeen:Date.now()
+
 },{merge:true});
 
 window.location="chat.html";
@@ -77,35 +81,36 @@ window.location="chat.html";
 
 }
 
+
 /* AUTH STATE */
 
-onAuthStateChanged(auth, async(user)=>{
+onAuthStateChanged(auth,async(user)=>{
 
 if(!user) return;
 
 currentUser=user;
 
-/* BAN CHECK */
+/* SET ONLINE */
 
-const userDoc = await getDoc(doc(db,"users",user.uid));
+await updateDoc(doc(db,"users",user.uid),{
+online:true
+});
 
-if(userDoc.exists()){
+/* UPDATE LAST SEEN WHEN LEAVING */
 
-if(userDoc.data().banned){
+window.addEventListener("beforeunload",async()=>{
 
-alert("You are banned by admin");
-auth.signOut();
-return;
-
-}
-
-}
-
-if(usersList) loadUsers();
-
-listenRequests();
+await updateDoc(doc(db,"users",user.uid),{
+online:false,
+lastSeen:Date.now()
+});
 
 });
+
+loadUsers();
+
+});
+
 
 /* LOAD USERS */
 
@@ -113,17 +118,24 @@ async function loadUsers(){
 
 usersList.innerHTML="";
 
-const snap = await getDocs(collection(db,"users"));
+const snap=await getDocs(collection(db,"users"));
 
 snap.forEach(docu=>{
 
 if(docu.id===currentUser.uid) return;
 
-const user = docu.data();
+const user=docu.data();
 
 const div=document.createElement("div");
+
 div.className="userRow";
-div.innerText=user.name;
+
+div.innerHTML=`
+${user.name}
+<span style="font-size:12px;color:gray">
+${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
+</span>
+`;
 
 div.onclick=()=>handleUserClick(docu.id,user.name);
 
@@ -133,7 +145,8 @@ usersList.appendChild(div);
 
 }
 
-/* USER CLICK */
+
+/* FRIEND CLICK */
 
 async function handleUserClick(uid,name){
 
@@ -171,6 +184,7 @@ sendFriendRequest(uid);
 
 }
 
+
 /* SEND FRIEND REQUEST */
 
 async function sendFriendRequest(uid){
@@ -191,90 +205,54 @@ return;
 }
 
 await addDoc(collection(db,"friendRequests"),{
+
 from:currentUser.uid,
 to:uid,
 status:"pending"
+
 });
 
 alert("Friend request sent");
 
 }
 
-/* LISTEN REQUESTS */
-
-function listenRequests(){
-
-const q=query(
-collection(db,"friendRequests"),
-where("to","==",currentUser.uid),
-where("status","==","pending")
-);
-
-onSnapshot(q,async(snap)=>{
-
-if(reqCount) reqCount.innerText=snap.size||"";
-
-if(!requestsPanel) return;
-
-requestsPanel.innerHTML="";
-
-for(const docu of snap.docs){
-
-const data=docu.data();
-
-const senderDoc=await getDoc(doc(db,"users",data.from));
-const senderName=senderDoc.data().name;
-
-const div=document.createElement("div");
-
-div.innerHTML=
-`Request from ${senderName}
-<button data-id="${docu.id}" class="accept">✔</button>
-<button data-id="${docu.id}" class="decline">✖</button>`;
-
-requestsPanel.appendChild(div);
-
-}
-
-});
-
-}
-
-/* ACCEPT / DECLINE */
-
-document.addEventListener("click",async(e)=>{
-
-if(e.target.className==="accept"){
-
-await updateDoc(doc(db,"friendRequests",e.target.dataset.id),{
-status:"accepted"
-});
-
-}
-
-if(e.target.className==="decline"){
-
-await updateDoc(doc(db,"friendRequests",e.target.dataset.id),{
-status:"declined"
-});
-
-}
-
-});
 
 /* OPEN CHAT */
 
-function openChat(uid,name){
-
-document.getElementById("chatUser").innerText=name;
+async function openChat(uid,name){
 
 currentFriend=uid;
-
 chatID=[currentUser.uid,uid].sort().join("_");
+
+chatUser.innerText=name;
 
 listenMessages();
 
+listenFriendStatus();
+
 }
+
+
+/* FRIEND ONLINE STATUS */
+
+function listenFriendStatus(){
+
+const ref=doc(db,"users",currentFriend);
+
+onSnapshot(ref,(docu)=>{
+
+const data=docu.data();
+
+const status=data.online?
+"🟢 Online":
+"Last seen "+new Date(data.lastSeen).toLocaleTimeString();
+
+chatUser.innerText=data.name+" ("+status+")";
+
+});
+
+}
+
 
 /* LISTEN MESSAGES */
 
@@ -289,7 +267,7 @@ onSnapshot(q,(snap)=>{
 
 chatBox.innerHTML="";
 
-snap.forEach(d=>{
+snap.forEach(async(d)=>{
 
 const m=d.data();
 
@@ -297,9 +275,32 @@ const div=document.createElement("div");
 
 div.className=m.sender===currentUser.uid?"sender":"receiver";
 
-div.innerText=m.text;
+let status="";
+
+if(m.sender===currentUser.uid){
+
+status=m.read?"✓✓ Read":m.delivered?"✓✓ Delivered":"✓ Sent";
+
+}
+
+div.innerHTML=`
+${m.text}
+<div style="font-size:10px;color:gray">
+${new Date(m.time).toLocaleTimeString()} ${status}
+</div>
+`;
 
 chatBox.appendChild(div);
+
+/* MARK READ */
+
+if(m.sender!==currentUser.uid && !m.read){
+
+await updateDoc(d.ref,{
+read:true
+});
+
+}
 
 });
 
@@ -309,18 +310,23 @@ chatBox.scrollTop=chatBox.scrollHeight;
 
 }
 
+
 /* SEND MESSAGE */
 
 if(sendBtn){
 
 sendBtn.onclick=async()=>{
 
-if(!currentFriend) return;
+if(!input.value.trim()) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
+
 text:input.value,
 sender:currentUser.uid,
-time:Date.now()
+time:Date.now(),
+delivered:true,
+read:false
+
 });
 
 input.value="";
@@ -328,3 +334,4 @@ input.value="";
 };
 
 }
+```
