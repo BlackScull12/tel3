@@ -1,9 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+
 import {
 getAuth,
 GoogleAuthProvider,
 signInWithPopup,
-onAuthStateChanged
+onAuthStateChanged,
+signOut
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
 import {
@@ -11,6 +13,7 @@ getFirestore,
 collection,
 doc,
 setDoc,
+getDoc,
 getDocs,
 addDoc,
 query,
@@ -19,6 +22,9 @@ onSnapshot,
 updateDoc,
 orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+
+/* ---------------- FIREBASE CONFIG ---------------- */
 
 const firebaseConfig = {
 apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
@@ -34,8 +40,13 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
+
+/* ---------------- DOM ELEMENTS ---------------- */
+
 const googleBtn = document.getElementById("googleLogin");
+
 const usersList = document.getElementById("usersList");
+
 const bell = document.getElementById("bell");
 const reqCount = document.getElementById("reqCount");
 const requestsPanel = document.getElementById("requestsPanel");
@@ -48,25 +59,34 @@ let currentUser = null;
 let currentFriend = null;
 let chatID = null;
 
+
 /* ---------------- LOGIN ---------------- */
 
 if (googleBtn) {
 
 googleBtn.onclick = async () => {
 
+try {
+
 const res = await signInWithPopup(auth, provider);
 const user = res.user;
 
 await setDoc(doc(db,"users",user.uid),{
 name:user.displayName,
-email:user.email
+email:user.email,
+banned:false
 },{merge:true});
 
 window.location = "chat.html";
 
+} catch(err){
+alert(err.message);
+}
+
 };
 
 }
+
 
 /* ---------------- AUTH STATE ---------------- */
 
@@ -76,11 +96,32 @@ if(!user) return;
 
 currentUser = user;
 
+/* CHECK BAN STATUS */
+
+const userDoc = await getDoc(doc(db,"users",user.uid));
+
+if(userDoc.exists()){
+
+const data = userDoc.data();
+
+if(data.banned){
+
+alert("You are banned by admin");
+
+signOut(auth);
+
+return;
+
+}
+
+}
+
 if(usersList) loadUsers();
 
 listenRequests();
 
 });
+
 
 /* ---------------- LOAD USERS ---------------- */
 
@@ -108,9 +149,12 @@ usersList.appendChild(div);
 
 }
 
+
 /* ---------------- HANDLE USER CLICK ---------------- */
 
 async function handleUserClick(uid,name){
+
+/* check if already friends */
 
 const q = query(
 collection(db,"friendRequests"),
@@ -146,6 +190,7 @@ sendFriendRequest(uid);
 
 }
 
+
 /* ---------------- SEND FRIEND REQUEST ---------------- */
 
 async function sendFriendRequest(uid){
@@ -175,6 +220,7 @@ alert("Friend request sent");
 
 }
 
+
 /* ---------------- LISTEN FRIEND REQUESTS ---------------- */
 
 function listenRequests(){
@@ -185,7 +231,7 @@ where("to","==",currentUser.uid),
 where("status","==","pending")
 );
 
-onSnapshot(q,(snap)=>{
+onSnapshot(q, async(snap)=>{
 
 if(reqCount) reqCount.innerText = snap.size || "";
 
@@ -193,24 +239,30 @@ if(!requestsPanel) return;
 
 requestsPanel.innerHTML="";
 
-snap.forEach(docu=>{
+for(const docu of snap.docs){
 
 const data = docu.data();
+
+/* get sender name */
+
+const senderDoc = await getDoc(doc(db,"users",data.from));
+const senderName = senderDoc.exists() ? senderDoc.data().name : data.from;
 
 const div = document.createElement("div");
 
 div.innerHTML =
-`Request from ${data.from}
+`Request from ${senderName}
 <button data-id="${docu.id}" class="accept">✔</button>
 <button data-id="${docu.id}" class="decline">✖</button>`;
 
 requestsPanel.appendChild(div);
 
-});
+}
 
 });
 
 }
+
 
 /* ---------------- BELL CLICK ---------------- */
 
@@ -224,6 +276,7 @@ requestsPanel.style.display === "block" ? "none" : "block";
 };
 
 }
+
 
 /* ---------------- ACCEPT / DECLINE ---------------- */
 
@@ -253,11 +306,14 @@ status:"declined"
 
 });
 
+
 /* ---------------- OPEN CHAT ---------------- */
 
 function openChat(uid,name){
 
-document.getElementById("chatUser").innerText = name;
+const chatUser = document.getElementById("chatUser");
+
+if(chatUser) chatUser.innerText = name;
 
 currentFriend = uid;
 
@@ -266,6 +322,7 @@ chatID = [currentUser.uid,uid].sort().join("_");
 listenMessages();
 
 }
+
 
 /* ---------------- LISTEN MESSAGES ---------------- */
 
@@ -277,6 +334,8 @@ orderBy("time")
 );
 
 onSnapshot(q,(snap)=>{
+
+if(!chatBox) return;
 
 chatBox.innerHTML="";
 
@@ -300,6 +359,7 @@ chatBox.scrollTop = chatBox.scrollHeight;
 
 }
 
+
 /* ---------------- SEND MESSAGE ---------------- */
 
 if(sendBtn){
@@ -307,6 +367,8 @@ if(sendBtn){
 sendBtn.onclick = async()=>{
 
 if(!currentFriend) return;
+
+if(!input.value.trim()) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 text:input.value,
