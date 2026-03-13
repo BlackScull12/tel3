@@ -28,14 +28,12 @@ getDoc
 /* FIREBASE CONFIG */
 
 const firebaseConfig = {
-
 apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
 authDomain: "chatgithub-e838d.firebaseapp.com",
 projectId: "chatgithub-e838d",
 storageBucket: "chatgithub-e838d.firebasestorage.app",
 messagingSenderId: "755589384017",
 appId: "1:755589384017:web:6af4c6d223d646cf36f570"
-
 };
 
 
@@ -50,7 +48,6 @@ const provider = new GoogleAuthProvider();
 /* DOM */
 
 const googleBtn = document.getElementById("googleLogin");
-
 const usersList = document.getElementById("usersList");
 
 const chatBox = document.getElementById("chatBox");
@@ -69,31 +66,35 @@ const nicknameBtn = document.getElementById("nicknameBtn");
 
 /* STATE */
 
-let currentUser=null;
-let currentFriend=null;
-let chatID=null;
+let currentUser = null;
+let currentFriend = null;
+let chatID = null;
+let unsubscribeMessages = null;
 
 
 /* LOGIN */
 
-if(googleBtn){
+if (googleBtn) {
 
-googleBtn.onclick=async()=>{
+googleBtn.onclick = async () => {
 
-const res=await signInWithPopup(auth,provider);
+try {
 
-const user=res.user;
+const res = await signInWithPopup(auth, provider);
+const user = res.user;
 
 await setDoc(doc(db,"users",user.uid),{
-
 name:user.displayName,
 email:user.email,
 online:true,
 lastSeen:Date.now()
-
 },{merge:true});
 
 window.location="chat.html";
+
+} catch(err){
+console.error("Login error",err);
+}
 
 };
 
@@ -102,22 +103,22 @@ window.location="chat.html";
 
 /* AUTH STATE */
 
-onAuthStateChanged(auth,async(user)=>{
+onAuthStateChanged(auth, async (user) => {
 
 if(!user) return;
 
-currentUser=user;
+currentUser = user;
 
-await updateDoc(doc(db,"users",user.uid),{
+await setDoc(doc(db,"users",user.uid),{
 online:true
-});
+},{merge:true});
 
-window.addEventListener("beforeunload",async()=>{
+window.addEventListener("beforeunload", async () => {
 
-await updateDoc(doc(db,"users",user.uid),{
+await setDoc(doc(db,"users",user.uid),{
 online:false,
 lastSeen:Date.now()
-});
+},{merge:true});
 
 });
 
@@ -134,26 +135,25 @@ if(!usersList) return;
 
 usersList.innerHTML="";
 
-const snap=await getDocs(collection(db,"users"));
+const snap = await getDocs(collection(db,"users"));
 
-snap.forEach(docu=>{
+snap.forEach(docu => {
 
-if(docu.id===currentUser.uid) return;
+if(docu.id === currentUser.uid) return;
 
-const user=docu.data();
+const user = docu.data();
 
-const div=document.createElement("div");
-
+const div = document.createElement("div");
 div.className="userRow";
 
-div.innerHTML=`
+div.innerHTML = `
 ${user.name}
 <span style="font-size:12px;color:gray">
-${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
+${user.online ? "🟢 Online" : "Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
 </span>
 `;
 
-div.onclick=()=>openChat(docu.id,user.name);
+div.onclick = () => openChat(docu.id,user.name);
 
 usersList.appendChild(div);
 
@@ -166,11 +166,12 @@ usersList.appendChild(div);
 
 async function openChat(uid,name){
 
-currentFriend=uid;
-
-chatID=[currentUser.uid,uid].sort().join("_");
+currentFriend = uid;
+chatID = [currentUser.uid,uid].sort().join("_");
 
 loadNickname(name);
+
+if(unsubscribeMessages) unsubscribeMessages();
 
 listenMessages();
 
@@ -181,24 +182,25 @@ listenMessages();
 
 async function loadNickname(defaultName){
 
-const ref=doc(db,"chats",chatID);
+if(!chatUser) return;
 
-const snap=await getDoc(ref);
+const ref = doc(db,"chats",chatID);
+const snap = await getDoc(ref);
 
 if(snap.exists()){
 
-const data=snap.data();
+const data = snap.data();
 
 if(data.nicknames && data.nicknames[currentFriend]){
 
-chatUser.innerText=data.nicknames[currentFriend];
+chatUser.innerText = data.nicknames[currentFriend];
 return;
 
 }
 
 }
 
-chatUser.innerText=defaultName;
+chatUser.innerText = defaultName;
 
 }
 
@@ -207,23 +209,19 @@ chatUser.innerText=defaultName;
 
 if(nicknameBtn){
 
-nicknameBtn.onclick=async()=>{
+nicknameBtn.onclick = async () => {
 
 if(!chatID) return;
 
-const name=prompt("Enter nickname:");
+const name = prompt("Enter nickname:");
 
 if(!name) return;
 
-const ref=doc(db,"chats",chatID);
-
-await setDoc(ref,{
-nicknames:{
-[currentFriend]:name
-}
+await setDoc(doc(db,"chats",chatID),{
+nicknames:{[currentFriend]:name}
 },{merge:true});
 
-chatUser.innerText=name;
+chatUser.innerText = name;
 
 };
 
@@ -234,24 +232,31 @@ chatUser.innerText=name;
 
 function listenMessages(){
 
-const q=query(
+const q = query(
 collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
-onSnapshot(q,(snap)=>{
+unsubscribeMessages = onSnapshot(q,(snap)=>{
 
 chatBox.innerHTML="";
 
 snap.forEach(d=>{
 
-const m=d.data();
-
-const div=document.createElement("div");
+const m = d.data();
+const div = document.createElement("div");
 
 div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
 
-div.innerHTML=`
+let content = m.text;
+
+if(content && content.includes("<img")){
+div.innerHTML = content;
+}else{
+div.textContent = content;
+}
+
+div.innerHTML += `
 
 <div class="reactionBar">
 <span onclick="react('${d.id}','👍')">👍</span>
@@ -261,11 +266,7 @@ div.innerHTML=`
 <span onclick="react('${d.id}','😢')">😢</span>
 </div>
 
-${m.text}
-
-<div class="reactions">
-${renderReactions(m.reactions)}
-</div>
+<div class="reactions">${renderReactions(m.reactions)}</div>
 
 <div class="messageTime">
 ${new Date(m.time).toLocaleTimeString()}
@@ -277,7 +278,7 @@ chatBox.appendChild(div);
 
 });
 
-chatBox.scrollTop=chatBox.scrollHeight;
+chatBox.scrollTop = chatBox.scrollHeight;
 
 });
 
@@ -293,17 +294,13 @@ if(!reactions) return "";
 let counts={};
 
 Object.values(reactions).forEach(e=>{
-
 counts[e]=(counts[e]||0)+1;
-
 });
 
 let html="";
 
 for(let e in counts){
-
 html+=`${e} ${counts[e]} `;
-
 }
 
 return html;
@@ -313,9 +310,11 @@ return html;
 
 /* REACT */
 
-window.react=async function(messageId,emoji){
+window.react = async function(messageId,emoji){
 
-const ref=doc(db,"chats",chatID,"messages",messageId);
+if(!chatID) return;
+
+const ref = doc(db,"chats",chatID,"messages",messageId);
 
 await updateDoc(ref,{
 ["reactions."+currentUser.uid]:emoji
@@ -330,14 +329,14 @@ async function sendMessage(){
 
 if(!input || !chatID) return;
 
-if(!input.value.trim()) return;
+const text = input.value.trim();
+
+if(!text) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
-
-text:input.value,
+text:text,
 sender:currentUser.uid,
 time:Date.now()
-
 });
 
 input.value="";
@@ -348,7 +347,7 @@ input.value="";
 /* SEND BUTTON */
 
 if(sendBtn){
-sendBtn.onclick=sendMessage;
+sendBtn.onclick = sendMessage;
 }
 
 
@@ -356,13 +355,11 @@ sendBtn.onclick=sendMessage;
 
 if(input){
 
-input.addEventListener("keypress",(e)=>{
+input.addEventListener("keydown",(e)=>{
 
 if(e.key==="Enter"){
-
 e.preventDefault();
 sendMessage();
-
 }
 
 });
@@ -370,21 +367,18 @@ sendMessage();
 }
 
 
-/* EMOJI PICKER INIT */
+/* EMOJI PICKER */
 
 if(emojiPicker){
 
-const picker=new EmojiMart.Picker({
-
+const picker = new EmojiMart.Picker({
 onEmojiSelect:(emoji)=>{
-
-input.value+=emoji.native;
-
+input.value += emoji.native;
 }
-
 });
 
 emojiPicker.appendChild(picker);
+emojiPicker.style.display="none";
 
 }
 
@@ -393,18 +387,12 @@ emojiPicker.appendChild(picker);
 
 if(emojiBtn){
 
-emojiBtn.onclick=()=>{
+emojiBtn.onclick = () => {
 
-if(emojiPicker.style.display==="block"){
+emojiPicker.style.display =
+emojiPicker.style.display==="block" ? "none" : "block";
 
-emojiPicker.style.display="none";
-
-}else{
-
-emojiPicker.style.display="block";
 gifPicker.style.display="none";
-
-}
 
 };
 
@@ -413,20 +401,20 @@ gifPicker.style.display="none";
 
 /* GIF DATA */
 
-const gifs=[
-
+const gifs = [
 "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
 "https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif",
 "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
 "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif",
 "https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif"
-
 ];
 
 
-/* CREATE GIF PICKER */
+/* GIF PICKER */
 
 if(gifPicker){
+
+gifPicker.style.display="none";
 
 gifs.forEach(url=>{
 
@@ -438,12 +426,12 @@ img.style.cursor="pointer";
 
 img.onclick=async()=>{
 
-await addDoc(collection(db,"chats",chatID,"messages"),{
+if(!chatID) return;
 
-text:`<img src="${url}" />`,
+await addDoc(collection(db,"chats",chatID,"messages"),{
+text:`<img src="${url}" style="max-width:200px;border-radius:10px;">`,
 sender:currentUser.uid,
 time:Date.now()
-
 });
 
 gifPicker.style.display="none";
@@ -463,17 +451,26 @@ if(gifBtn){
 
 gifBtn.onclick=()=>{
 
-if(gifPicker.style.display==="block"){
+gifPicker.style.display =
+gifPicker.style.display==="block"?"none":"block";
 
-gifPicker.style.display="none";
-
-}else{
-
-gifPicker.style.display="block";
 emojiPicker.style.display="none";
-
-}
 
 };
 
 }
+
+
+/* CLOSE PICKERS WHEN CLICKING OUTSIDE */
+
+document.addEventListener("click",(e)=>{
+
+if(!emojiPicker.contains(e.target) && e.target!==emojiBtn){
+emojiPicker.style.display="none";
+}
+
+if(!gifPicker.contains(e.target) && e.target!==gifBtn){
+gifPicker.style.display="none";
+}
+
+});
