@@ -15,7 +15,6 @@ collection,
 doc,
 setDoc,
 getDoc,
-getDocs,
 addDoc,
 updateDoc,
 query,
@@ -120,10 +119,11 @@ try{
 const snap = await getDoc(doc(db,"users",user.uid));
 const data = snap.exists() ? snap.data() : {};
 
-const avatar = data.photo || user.photoURL || DEFAULT_PFP;
-const videoAvatar = data.videoPhoto || "";
-
-renderAvatar(myProfilePic,avatar,videoAvatar);
+renderAvatar(
+myProfilePic,
+data.photo || user.photoURL || DEFAULT_PFP,
+data.videoPhoto || ""
+);
 
 loadUsers();
 
@@ -157,9 +157,7 @@ const ref = doc(db,"users",currentUser.uid);
 
 if(file.type === "video/mp4"){
 
-await updateDoc(ref,{
-videoPhoto:base64
-});
+await updateDoc(ref,{ videoPhoto:base64 });
 
 renderAvatar(myProfilePic,"",base64);
 
@@ -178,10 +176,6 @@ alert("Only image or MP4 allowed");
 return;
 
 }
-
-/* immediately update UI everywhere */
-
-loadUsers();
 
 }catch(err){
 console.error(err);
@@ -223,17 +217,17 @@ onerror="this.src='${DEFAULT_PFP}'">
 }
 
 
-/* ---------------- LOAD USERS ---------------- */
+/* ---------------- LOAD USERS (REALTIME FIX) ---------------- */
 
-async function loadUsers(){
+function loadUsers(){
 
 if(!usersList || !currentUser) return;
 
+const usersRef = collection(db,"users");
+
+onSnapshot(usersRef,(snap)=>{
+
 usersList.innerHTML = "";
-
-try{
-
-const snap = await getDocs(collection(db,"users"));
 
 snap.forEach(docu=>{
 
@@ -278,9 +272,7 @@ usersList.appendChild(div);
 
 });
 
-}catch(err){
-console.error(err);
-}
+});
 
 }
 
@@ -415,17 +407,11 @@ window.react = async (id,emoji)=>{
 
 if(!chatID || !currentUser) return;
 
-try{
-
 const ref = doc(db,"chats",chatID,"messages",id);
 
 await updateDoc(ref,{
 [`reactions.${currentUser.uid}`]:emoji
 });
-
-}catch(err){
-console.error(err);
-}
 
 };
 
@@ -438,8 +424,6 @@ if(!chatID || !input) return;
 
 const text = input.value.trim();
 if(!text) return;
-
-try{
 
 const snap = await getDoc(doc(db,"users",currentUser.uid));
 const data = snap.exists() ? snap.data() : {};
@@ -456,10 +440,6 @@ time:Date.now()
 });
 
 input.value="";
-
-}catch(err){
-console.error(err);
-}
 
 }
 
