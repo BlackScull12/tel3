@@ -1,4 +1,3 @@
-
 /* FIREBASE IMPORTS */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -28,13 +27,20 @@ getDoc
 /* FIREBASE CONFIG */
 
 const firebaseConfig = {
+
 apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
 authDomain: "chatgithub-e838d.firebaseapp.com",
 projectId: "chatgithub-e838d",
 storageBucket: "chatgithub-e838d.firebasestorage.app",
 messagingSenderId: "755589384017",
 appId: "1:755589384017:web:6af4c6d223d646cf36f570"
+
 };
+
+
+/* TENOR API */
+
+const TENOR_API_KEY = "GMuQzaqlWpM7rtGovFj5OIlNZQfyiAwVJFBXDvavpCjMbbmgkryWv5V3XQx53HxI";
 
 
 /* INIT */
@@ -66,22 +72,20 @@ const nicknameBtn = document.getElementById("nicknameBtn");
 
 /* STATE */
 
-let currentUser = null;
-let currentFriend = null;
-let chatID = null;
-let unsubscribeMessages = null;
+let currentUser=null;
+let currentFriend=null;
+let chatID=null;
+let unsubscribeMessages=null;
 
 
 /* LOGIN */
 
-if (googleBtn) {
+if(googleBtn){
 
-googleBtn.onclick = async () => {
+googleBtn.onclick=async()=>{
 
-try {
-
-const res = await signInWithPopup(auth, provider);
-const user = res.user;
+const res=await signInWithPopup(auth,provider);
+const user=res.user;
 
 await setDoc(doc(db,"users",user.uid),{
 name:user.displayName,
@@ -92,10 +96,6 @@ lastSeen:Date.now()
 
 window.location="chat.html";
 
-} catch(err){
-console.error("Login error",err);
-}
-
 };
 
 }
@@ -103,17 +103,17 @@ console.error("Login error",err);
 
 /* AUTH STATE */
 
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth,async(user)=>{
 
 if(!user) return;
 
-currentUser = user;
+currentUser=user;
 
 await setDoc(doc(db,"users",user.uid),{
 online:true
 },{merge:true});
 
-window.addEventListener("beforeunload", async () => {
+window.addEventListener("beforeunload",async()=>{
 
 await setDoc(doc(db,"users",user.uid),{
 online:false,
@@ -135,25 +135,25 @@ if(!usersList) return;
 
 usersList.innerHTML="";
 
-const snap = await getDocs(collection(db,"users"));
+const snap=await getDocs(collection(db,"users"));
 
-snap.forEach(docu => {
+snap.forEach(docu=>{
 
-if(docu.id === currentUser.uid) return;
+if(docu.id===currentUser.uid) return;
 
-const user = docu.data();
+const user=docu.data();
 
-const div = document.createElement("div");
+const div=document.createElement("div");
 div.className="userRow";
 
-div.innerHTML = `
+div.innerHTML=`
 ${user.name}
 <span style="font-size:12px;color:gray">
-${user.online ? "🟢 Online" : "Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
+${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
 </span>
 `;
 
-div.onclick = () => openChat(docu.id,user.name);
+div.onclick=()=>openChat(docu.id,user.name);
 
 usersList.appendChild(div);
 
@@ -166,8 +166,8 @@ usersList.appendChild(div);
 
 async function openChat(uid,name){
 
-currentFriend = uid;
-chatID = [currentUser.uid,uid].sort().join("_");
+currentFriend=uid;
+chatID=[currentUser.uid,uid].sort().join("_");
 
 loadNickname(name);
 
@@ -182,25 +182,21 @@ listenMessages();
 
 async function loadNickname(defaultName){
 
-if(!chatUser) return;
-
-const ref = doc(db,"chats",chatID);
-const snap = await getDoc(ref);
+const ref=doc(db,"chats",chatID);
+const snap=await getDoc(ref);
 
 if(snap.exists()){
 
-const data = snap.data();
+const data=snap.data();
 
 if(data.nicknames && data.nicknames[currentFriend]){
-
-chatUser.innerText = data.nicknames[currentFriend];
+chatUser.innerText=data.nicknames[currentFriend];
 return;
-
 }
 
 }
 
-chatUser.innerText = defaultName;
+chatUser.innerText=defaultName;
 
 }
 
@@ -209,19 +205,18 @@ chatUser.innerText = defaultName;
 
 if(nicknameBtn){
 
-nicknameBtn.onclick = async () => {
+nicknameBtn.onclick=async()=>{
 
 if(!chatID) return;
 
-const name = prompt("Enter nickname:");
-
+const name=prompt("Enter nickname:");
 if(!name) return;
 
 await setDoc(doc(db,"chats",chatID),{
 nicknames:{[currentFriend]:name}
 },{merge:true});
 
-chatUser.innerText = name;
+chatUser.innerText=name;
 
 };
 
@@ -232,31 +227,26 @@ chatUser.innerText = name;
 
 function listenMessages(){
 
-const q = query(
+const q=query(
 collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
-unsubscribeMessages = onSnapshot(q,(snap)=>{
+unsubscribeMessages=onSnapshot(q,(snap)=>{
 
 chatBox.innerHTML="";
 
 snap.forEach(d=>{
 
-const m = d.data();
-const div = document.createElement("div");
+const m=d.data();
+
+const div=document.createElement("div");
 
 div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
 
-let content = m.text;
+div.innerHTML=`
 
-if(content && content.includes("<img")){
-div.innerHTML = content;
-}else{
-div.textContent = content;
-}
-
-div.innerHTML += `
+${m.text}
 
 <div class="reactionBar">
 <span onclick="react('${d.id}','👍')">👍</span>
@@ -266,7 +256,9 @@ div.innerHTML += `
 <span onclick="react('${d.id}','😢')">😢</span>
 </div>
 
-<div class="reactions">${renderReactions(m.reactions)}</div>
+<div class="reactions">
+${renderReactions(m.reactions)}
+</div>
 
 <div class="messageTime">
 ${new Date(m.time).toLocaleTimeString()}
@@ -278,14 +270,14 @@ chatBox.appendChild(div);
 
 });
 
-chatBox.scrollTop = chatBox.scrollHeight;
+chatBox.scrollTop=chatBox.scrollHeight;
 
 });
 
 }
 
 
-/* RENDER REACTIONS */
+/* REACTIONS */
 
 function renderReactions(reactions){
 
@@ -307,14 +299,9 @@ return html;
 
 }
 
+window.react=async function(messageId,emoji){
 
-/* REACT */
-
-window.react = async function(messageId,emoji){
-
-if(!chatID) return;
-
-const ref = doc(db,"chats",chatID,"messages",messageId);
+const ref=doc(db,"chats",chatID,"messages",messageId);
 
 await updateDoc(ref,{
 ["reactions."+currentUser.uid]:emoji
@@ -327,41 +314,32 @@ await updateDoc(ref,{
 
 async function sendMessage(){
 
-if(!input || !chatID) return;
+if(!chatID) return;
 
-const text = input.value.trim();
-
+const text=input.value.trim();
 if(!text) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
+
 text:text,
 sender:currentUser.uid,
 time:Date.now()
+
 });
 
 input.value="";
 
 }
 
-
-/* SEND BUTTON */
-
-if(sendBtn){
-sendBtn.onclick = sendMessage;
-}
-
-
-/* ENTER KEY SEND */
+if(sendBtn) sendBtn.onclick=sendMessage;
 
 if(input){
 
 input.addEventListener("keydown",(e)=>{
-
 if(e.key==="Enter"){
 e.preventDefault();
 sendMessage();
 }
-
 });
 
 }
@@ -371,10 +349,12 @@ sendMessage();
 
 if(emojiPicker){
 
-const picker = new EmojiMart.Picker({
+const picker=new EmojiMart.Picker({
+
 onEmojiSelect:(emoji)=>{
-input.value += emoji.native;
+input.value+=emoji.native;
 }
+
 });
 
 emojiPicker.appendChild(picker);
@@ -387,10 +367,10 @@ emojiPicker.style.display="none";
 
 if(emojiBtn){
 
-emojiBtn.onclick = () => {
+emojiBtn.onclick=()=>{
 
-emojiPicker.style.display =
-emojiPicker.style.display==="block" ? "none" : "block";
+emojiPicker.style.display=
+emojiPicker.style.display==="block"?"none":"block";
 
 gifPicker.style.display="none";
 
@@ -399,24 +379,39 @@ gifPicker.style.display="none";
 }
 
 
-/* GIF DATA */
-
-const gifs = [
-"https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
-"https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif",
-"https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
-"https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif",
-"https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif"
-];
-
-
-/* GIF PICKER */
+/* TENOR GIF SEARCH */
 
 if(gifPicker){
 
+gifPicker.innerHTML=`
+
+<input id="gifSearch" placeholder="Search GIFs..." style="width:100%;padding:8px;border:none;border-bottom:1px solid #ccc">
+
+<div id="gifResults" style="display:flex;flex-wrap:wrap;gap:5px;padding:5px"></div>
+
+`;
+
 gifPicker.style.display="none";
 
-gifs.forEach(url=>{
+const gifSearch=document.getElementById("gifSearch");
+const gifResults=document.getElementById("gifResults");
+
+gifSearch.addEventListener("input",async()=>{
+
+const queryText=gifSearch.value.trim();
+if(!queryText) return;
+
+const res=await fetch(
+`https://tenor.googleapis.com/v2/search?q=${queryText}&key=${TENOR_API_KEY}&limit=20`
+);
+
+const data=await res.json();
+
+gifResults.innerHTML="";
+
+data.results.forEach(gif=>{
+
+const url=gif.media_formats.gif.url;
 
 const img=document.createElement("img");
 
@@ -426,19 +421,21 @@ img.style.cursor="pointer";
 
 img.onclick=async()=>{
 
-if(!chatID) return;
-
 await addDoc(collection(db,"chats",chatID,"messages"),{
-text:`<img src="${url}" style="max-width:200px;border-radius:10px;">`,
+
+text:`<img src="${url}" style="max-width:200px;border-radius:10px">`,
 sender:currentUser.uid,
 time:Date.now()
+
 });
 
 gifPicker.style.display="none";
 
 };
 
-gifPicker.appendChild(img);
+gifResults.appendChild(img);
+
+});
 
 });
 
@@ -451,7 +448,7 @@ if(gifBtn){
 
 gifBtn.onclick=()=>{
 
-gifPicker.style.display =
+gifPicker.style.display=
 gifPicker.style.display==="block"?"none":"block";
 
 emojiPicker.style.display="none";
@@ -461,7 +458,7 @@ emojiPicker.style.display="none";
 }
 
 
-/* CLOSE PICKERS WHEN CLICKING OUTSIDE */
+/* CLOSE PICKERS */
 
 document.addEventListener("click",(e)=>{
 
