@@ -35,7 +35,7 @@ appId: "1:755589384017:web:6af4c6d223d646cf36f570"
 };
 
 
-/* INITIALIZE FIREBASE */
+/* INITIALIZE */
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -43,7 +43,7 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 
-/* DOM ELEMENTS */
+/* DOM */
 
 const googleBtn = document.getElementById("googleLogin");
 const usersList = document.getElementById("usersList");
@@ -53,8 +53,11 @@ const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const chatUser = document.getElementById("chatUser");
 
+const emojiBtn = document.getElementById("emojiBtn");
+const emojiPickerDiv = document.getElementById("emojiPicker");
 
-/* GLOBAL VARIABLES */
+
+/* GLOBAL */
 
 let currentUser = null;
 let currentFriend = null;
@@ -102,14 +105,9 @@ if (!user) return;
 
 currentUser = user;
 
-/* SET USER ONLINE */
-
 await setDoc(doc(db, "users", user.uid), {
 online: true
 }, { merge: true });
-
-
-/* UPDATE LAST SEEN WHEN LEAVING */
 
 window.addEventListener("beforeunload", () => {
 
@@ -120,15 +118,12 @@ lastSeen: Date.now()
 
 });
 
-
-/* LOAD USERS */
-
 if (usersList) loadUsers();
 
 });
 
 
-/* LOAD USERS LIST */
+/* LOAD USERS */
 
 async function loadUsers() {
 
@@ -157,8 +152,6 @@ div.onclick = () => openChat(docu.id, user.name);
 
 usersList.appendChild(div);
 
-/* UNREAD MESSAGE COUNTER */
-
 listenUnread(docu.id);
 
 });
@@ -166,7 +159,7 @@ listenUnread(docu.id);
 }
 
 
-/* UNREAD MESSAGE COUNTER */
+/* UNREAD COUNTER */
 
 function listenUnread(uid) {
 
@@ -217,7 +210,7 @@ listenMessages();
 }
 
 
-/* FRIEND ONLINE STATUS */
+/* FRIEND STATUS */
 
 function listenFriendStatus() {
 
@@ -242,19 +235,13 @@ chatUser.innerText = data.name + " (" + status + ")";
 }
 
 
-/* LISTEN FOR MESSAGES */
+/* LISTEN MESSAGES */
 
 function listenMessages() {
 
 if (!chatBox) return;
 
-/* REMOVE OLD LISTENER */
-
-if (unsubscribeMessages) {
-
-unsubscribeMessages();
-
-}
+if (unsubscribeMessages) unsubscribeMessages();
 
 const q = query(
 collection(db, "chats", chatID, "messages"),
@@ -289,8 +276,6 @@ ${new Date(m.time).toLocaleTimeString()} ${status}
 `;
 
 chatBox.appendChild(div);
-
-/* MARK MESSAGE READ */
 
 if (m.sender !== currentUser.uid && !m.read) {
 
@@ -332,11 +317,7 @@ input.value = "";
 
 /* SEND BUTTON */
 
-if (sendBtn) {
-
-sendBtn.onclick = sendMessage;
-
-}
+if (sendBtn) sendBtn.onclick = sendMessage;
 
 
 /* ENTER KEY SEND */
@@ -353,5 +334,30 @@ sendMessage();
 }
 
 });
+
+}
+
+
+/* EMOJI PICKER */
+
+if (emojiBtn && emojiPickerDiv) {
+
+emojiBtn.onclick = () => {
+
+emojiPickerDiv.innerHTML = "";
+
+const picker = new EmojiMart.Picker({
+
+onEmojiSelect: (emoji) => {
+
+input.value += emoji.native;
+
+}
+
+});
+
+emojiPickerDiv.appendChild(picker);
+
+};
 
 }
