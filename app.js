@@ -63,6 +63,11 @@ const uploadBtn = document.getElementById("uploadBtn");
 const myProfilePic = document.getElementById("myProfilePic");
 
 
+/* ---------------- DEFAULT PFP ---------------- */
+
+const DEFAULT_PFP = "https://i.imgur.com/HeIi0wU.png";
+
+
 /* ---------------- STATE ---------------- */
 
 let currentUser = null;
@@ -77,7 +82,7 @@ if (googleBtn) {
 
 googleBtn.onclick = async () => {
 
-try {
+try{
 
 const res = await signInWithPopup(auth, provider);
 const user = res.user;
@@ -86,14 +91,14 @@ await setDoc(doc(db,"users",user.uid),{
 
 name:user.displayName,
 email:user.email,
-photo:user.photoURL || ""
+photo:user.photoURL || DEFAULT_PFP
 
 },{merge:true});
 
 window.location = "chat.html";
 
 }catch(err){
-console.error("Login error:",err);
+console.error(err);
 }
 
 };
@@ -113,18 +118,16 @@ try{
 
 const snap = await getDoc(doc(db,"users",user.uid));
 
+let avatar = DEFAULT_PFP;
+
 if(snap.exists()){
 
 const data = snap.data();
-
-const avatar =
-data.photo ||
-user.photoURL ||
-"";
-
-renderAvatar(myProfilePic,avatar);
+avatar = data.photo || user.photoURL || DEFAULT_PFP;
 
 }
+
+renderAvatar(myProfilePic,avatar);
 
 loadUsers();
 
@@ -147,7 +150,7 @@ const file = profileUpload.files[0];
 if(!file || !currentUser) return;
 
 if(!file.type.startsWith("image/")){
-alert("Only image files allowed");
+alert("Only images allowed");
 return;
 }
 
@@ -167,7 +170,7 @@ renderAvatar(myProfilePic,base64);
 loadUsers();
 
 }catch(err){
-console.error("Upload error:",err);
+console.error(err);
 }
 
 };
@@ -179,14 +182,14 @@ reader.readAsDataURL(file);
 }
 
 
-/* ---------------- AVATAR RENDER ---------------- */
+/* ---------------- RENDER AVATAR ---------------- */
 
 function renderAvatar(container,src){
 
 if(!container) return;
 
 container.innerHTML = `
-<img class="profilePic" src="${src}">
+<img class="profilePic" src="${src}" onerror="this.src='${DEFAULT_PFP}'">
 `;
 
 }
@@ -213,13 +216,13 @@ const user = docu.data();
 const avatar =
 user.photo ||
 user.photoURL ||
-"";
+DEFAULT_PFP;
 
 const div = document.createElement("div");
 div.className = "userRow";
 
 div.innerHTML = `
-<img class="userAvatar" src="${avatar}">
+<img class="userAvatar" src="${avatar}" onerror="this.src='${DEFAULT_PFP}'">
 <b>${user.name || "User"}</b>
 `;
 
@@ -239,8 +242,6 @@ console.error(err);
 /* ---------------- OPEN CHAT ---------------- */
 
 function openChat(uid,name){
-
-if(!currentUser) return;
 
 currentFriend = uid;
 chatID = [currentUser.uid,uid].sort().join("_");
@@ -274,7 +275,7 @@ snap.forEach(d=>{
 const m = d.data();
 const id = d.id;
 
-const avatar = m.photo || "";
+const avatar = m.photo || DEFAULT_PFP;
 
 const div = document.createElement("div");
 
@@ -283,7 +284,7 @@ div.className =
 
 div.innerHTML = `
 
-<img class="msgAvatar" src="${avatar}">
+<img class="msgAvatar" src="${avatar}" onerror="this.src='${DEFAULT_PFP}'">
 
 <div class="msgBubble">
 
@@ -379,7 +380,7 @@ const data = snap.data();
 const avatar =
 data.photo ||
 currentUser.photoURL ||
-"";
+DEFAULT_PFP;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
