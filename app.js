@@ -179,50 +179,60 @@ loadUsers();
 
 if(uploadBtn && profileUpload){
 
-uploadBtn.onclick=()=>{
+/* open file picker */
 
+uploadBtn.onclick = () => {
 profileUpload.click();
-
 };
 
-profileUpload.addEventListener("change",()=>{
+/* when file selected */
 
-const file=profileUpload.files[0];
+profileUpload.onchange = () => {
+
+const file = profileUpload.files[0];
 if(!file) return;
 
-const reader=new FileReader();
+const reader = new FileReader();
 
-reader.onload=async(e)=>{
+reader.onload = async (e) => {
 
-const base64=e.target.result;
+const base64 = e.target.result;
 
-if(file.type==="image/gif"){
+/* save to firestore */
+
+if(file.type === "image/gif"){
 
 await updateDoc(doc(db,"users",currentUser.uid),{
-animatedPhoto:base64
+animatedPhoto:base64,
+photo:""
 });
 
 }else{
 
 await updateDoc(doc(db,"users",currentUser.uid),{
-photo:base64
+photo:base64,
+animatedPhoto:""
 });
 
 }
 
+/* update current profile pic */
+
 if(myProfilePic){
-myProfilePic.src=base64;
+myProfilePic.src = base64;
 }
+
+/* refresh users list so new avatar appears */
+
+loadUsers();
 
 };
 
 reader.readAsDataURL(file);
 
-});
+};
 
 }
-
-
 /* LOAD USERS */
 
 async function loadUsers(){
@@ -336,7 +346,7 @@ const m=d.data();
 const div=document.createElement("div");
 div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
 
-const avatar=m.photo || "https://i.imgur.com/HeIi0wU.png";
+const avatar = m.photo || "https://i.imgur.com/HeIi0wU.png";
 
 div.innerHTML=`
 
@@ -417,14 +427,25 @@ async function sendMessage(){
 
 if(!chatID) return;
 
-const text=input.value.trim();
+const text = input.value.trim();
 if(!text) return;
+
+/* always get latest profile photo */
+
+const userSnap = await getDoc(doc(db,"users",currentUser.uid));
+const userData = userSnap.data();
+
+const avatar =
+userData.animatedPhoto ||
+userData.photo ||
+currentUser.photoURL ||
+"https://i.imgur.com/HeIi0wU.png";
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
 text:text,
 sender:currentUser.uid,
-photo:myProfilePic ? myProfilePic.src : "",
+photo:avatar,
 time:Date.now()
 
 });
@@ -432,23 +453,6 @@ time:Date.now()
 input.value="";
 
 }
-
-if(sendBtn) sendBtn.onclick=sendMessage;
-
-if(input){
-
-input.addEventListener("keydown",(e)=>{
-
-if(e.key==="Enter"){
-e.preventDefault();
-sendMessage();
-}
-
-});
-
-}
-
-
 /* EMOJI PICKER */
 
 if(emojiPicker && window.EmojiMart){
