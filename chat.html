@@ -1,13 +1,12 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
 
-<title>Chat App</title>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Chat App</title>
 
 <link rel="stylesheet" href="style.css">
 
@@ -16,33 +15,78 @@
 
 <body>
 
+
+<!-- USERS LIST -->
+
 <div id="usersList"></div>
+
+
+
+<!-- CHAT AREA -->
 
 <div id="chatArea">
 
+
+<!-- CHAT HEADER -->
+
 <div id="chatHeader">
-<span id="chatUser">Select a user</span>
+<span id="chatUser">Select a user to chat</span>
 </div>
+
+
+
+<!-- CHAT MESSAGES -->
 
 <div id="chatBox"></div>
 
+
+
+<!-- CHAT INPUT -->
+
 <div id="chatInput">
 
-<button id="emojiBtn">😀</button>
-<button id="gifBtn">GIF</button>
+<button id="emojiBtn" title="Emoji">😀</button>
 
-<input id="messageInput" placeholder="Type message...">
+<button id="gifBtn" title="GIF">GIF</button>
+
+<input
+id="messageInput"
+type="text"
+placeholder="Type a message..."
+autocomplete="off"
+/>
 
 <button id="sendBtn">Send</button>
 
 </div>
 
-<div id="emojiPicker"></div>
-<div id="gifPicker"></div>
+
+
+<!-- EMOJI PICKER -->
+
+<div id="emojiPicker" style="display:none"></div>
+
+
+
+<!-- GIF PICKER -->
+
+<div id="gifPicker" style="display:none"></div>
+
 
 </div>
 
+
+
+<!-- EMOJI LIBRARY -->
+
+<script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
+
+
+
+<!-- FIREBASE APP SCRIPT -->
+
 <script type="module" src="app.js"></script>
+
 
 </body>
 
