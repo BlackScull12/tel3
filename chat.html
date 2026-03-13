@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 
@@ -11,13 +10,17 @@
 
 <style>
 
+/* GLOBAL */
+
 body{
 margin:0;
-font-family:Arial;
+font-family:Arial, Helvetica, sans-serif;
 display:flex;
 height:100vh;
 background:#f0f2f5;
+overflow:hidden;
 }
+
 
 /* USER LIST */
 
@@ -32,11 +35,15 @@ overflow-y:auto;
 padding:15px;
 border-bottom:1px solid #eee;
 cursor:pointer;
+display:flex;
+flex-direction:column;
+gap:3px;
 }
 
 .userRow:hover{
 background:#f5f5f5;
 }
+
 
 /* CHAT AREA */
 
@@ -44,7 +51,10 @@ background:#f5f5f5;
 flex:1;
 display:flex;
 flex-direction:column;
+position:relative;
+min-height:0;
 }
+
 
 /* CHAT HEADER */
 
@@ -55,6 +65,7 @@ color:white;
 font-weight:bold;
 }
 
+
 /* CHAT MESSAGES */
 
 #chatBox{
@@ -64,7 +75,10 @@ overflow-y:auto;
 display:flex;
 flex-direction:column;
 gap:10px;
+background:#e5ddd5;
+min-height:0;
 }
+
 
 /* MESSAGE BUBBLES */
 
@@ -72,18 +86,30 @@ gap:10px;
 align-self:flex-end;
 background:#0084ff;
 color:white;
-padding:10px;
-border-radius:10px;
-max-width:60%;
+padding:10px 14px;
+border-radius:15px;
+max-width:65%;
+word-wrap:break-word;
 }
 
 .receiver{
 align-self:flex-start;
-background:#e4e6eb;
-padding:10px;
-border-radius:10px;
-max-width:60%;
+background:white;
+padding:10px 14px;
+border-radius:15px;
+max-width:65%;
+word-wrap:break-word;
 }
+
+
+/* MESSAGE MEDIA */
+
+.sender img,
+.receiver img{
+max-width:220px;
+border-radius:10px;
+}
+
 
 /* INPUT AREA */
 
@@ -93,6 +119,8 @@ padding:10px;
 background:white;
 border-top:1px solid #ccc;
 gap:5px;
+align-items:center;
+position:relative;
 }
 
 #chatInput input{
@@ -104,7 +132,7 @@ outline:none;
 }
 
 #chatInput button{
-padding:10px 15px;
+padding:8px 14px;
 border:none;
 border-radius:20px;
 cursor:pointer;
@@ -112,19 +140,58 @@ background:#0084ff;
 color:white;
 }
 
+
 /* EMOJI + GIF PICKERS */
 
 #emojiPicker,
 #gifPicker{
 position:absolute;
-bottom:80px;
-right:20px;
+bottom:70px;
+right:10px;
 background:white;
 border:1px solid #ccc;
 border-radius:10px;
 max-height:300px;
 overflow:auto;
-z-index:1000;
+box-shadow:0 4px 10px rgba(0,0,0,0.15);
+z-index:9999;
+}
+
+
+/* GIF GRID */
+
+#gifPicker img{
+width:100px;
+margin:5px;
+border-radius:8px;
+cursor:pointer;
+}
+
+
+/* MOBILE */
+
+@media (max-width:600px){
+
+body{
+flex-direction:column;
+}
+
+#usersList{
+width:100%;
+height:35vh;
+border-right:none;
+border-bottom:1px solid #ccc;
+}
+
+#chatArea{
+height:65vh;
+}
+
+.sender,
+.receiver{
+max-width:80%;
+}
+
 }
 
 </style>
@@ -145,16 +212,11 @@ z-index:1000;
 
 <div id="chatArea">
 
-
 <div id="chatHeader">
-
 <span id="chatUser">Select a user to chat</span>
-
 </div>
 
-
 <div id="chatBox"></div>
-
 
 
 <!-- CHAT INPUT -->
@@ -172,14 +234,13 @@ z-index:1000;
 </div>
 
 
-</div>
-
-
-<!-- PICKERS -->
+<!-- PICKERS INSIDE CHAT AREA -->
 
 <div id="emojiPicker"></div>
 
 <div id="gifPicker"></div>
+
+</div>
 
 
 
@@ -188,7 +249,7 @@ z-index:1000;
 <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
 
 
-<!-- FIREBASE CHAT SCRIPT -->
+<!-- FIREBASE SCRIPT -->
 
 <script type="module" src="app.js"></script>
 
