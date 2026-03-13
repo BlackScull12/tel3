@@ -44,6 +44,11 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 
+/* ---------------- DEFAULT PFP ---------------- */
+
+const DEFAULT_PFP = "https://i.imgur.com/HeIi0wU.png";
+
+
 /* ---------------- DOM ---------------- */
 
 const googleBtn = document.getElementById("googleLogin");
@@ -77,7 +82,7 @@ if (googleBtn) {
 
 googleBtn.onclick = async () => {
 
-try {
+try{
 
 const res = await signInWithPopup(auth, provider);
 const user = res.user;
@@ -86,14 +91,14 @@ await setDoc(doc(db,"users",user.uid),{
 
 name:user.displayName,
 email:user.email,
-photo:user.photoURL || "",
+photo:user.photoURL || DEFAULT_PFP,
 videoPhoto:""
 
 },{merge:true});
 
 window.location = "chat.html";
 
-} catch(err){
+}catch(err){
 console.error("Login error:",err);
 }
 
@@ -114,24 +119,24 @@ try{
 
 const snap = await getDoc(doc(db,"users",user.uid));
 
+let avatar = DEFAULT_PFP;
+let videoAvatar = "";
+
 if(snap.exists()){
 
 const data = snap.data();
 
-const avatar =
-data.videoPhoto ||
-data.photo ||
-user.photoURL ||
-"";
-
-renderAvatar(myProfilePic,avatar);
+avatar = data.photo || user.photoURL || DEFAULT_PFP;
+videoAvatar = data.videoPhoto || "";
 
 }
+
+renderAvatar(myProfilePic, avatar, videoAvatar);
 
 loadUsers();
 
 }catch(err){
-console.error("Auth load error:",err);
+console.error(err);
 }
 
 });
@@ -143,7 +148,7 @@ if(uploadBtn && profileUpload){
 
 uploadBtn.onclick = ()=> profileUpload.click();
 
-profileUpload.onchange = async ()=>{
+profileUpload.onchange = ()=>{
 
 const file = profileUpload.files[0];
 if(!file || !currentUser) return;
@@ -161,24 +166,29 @@ const ref = doc(db,"users",currentUser.uid);
 if(file.type === "video/mp4"){
 
 await updateDoc(ref,{
-videoPhoto:base64,
-photo:""
+videoPhoto:base64
 });
 
-}else{
+renderAvatar(myProfilePic,"",base64);
+
+}else if(file.type.startsWith("image/")){
 
 await updateDoc(ref,{
 photo:base64,
 videoPhoto:""
 });
 
+renderAvatar(myProfilePic,base64,"");
+
+}else{
+
+alert("Only MP4 or image files allowed");
 }
 
-renderAvatar(myProfilePic,base64);
 loadUsers();
 
 }catch(err){
-console.error("Upload error:",err);
+console.error(err);
 }
 
 };
@@ -190,24 +200,25 @@ reader.readAsDataURL(file);
 }
 
 
-/* ---------------- AVATAR RENDER ---------------- */
+/* ---------------- RENDER AVATAR ---------------- */
 
-function renderAvatar(container,src){
+function renderAvatar(container,image,video){
 
 if(!container) return;
 
-if(src && src.startsWith("data:video")){
+if(video){
 
 container.innerHTML = `
-<video class="profilePic" autoplay loop muted>
-<source src="${src}" type="video/mp4">
+<video class="profilePic" autoplay loop muted playsinline>
+<source src="${video}" type="video/mp4">
 </video>
 `;
 
 }else{
 
 container.innerHTML = `
-<img class="profilePic" src="${src}">
+<img class="profilePic" src="${image || DEFAULT_PFP}" 
+onerror="this.src='${DEFAULT_PFP}'">
 `;
 
 }
@@ -233,25 +244,25 @@ if(docu.id === currentUser.uid) return;
 
 const user = docu.data();
 
-const avatar =
-user.videoPhoto ||
-user.photo ||
-user.photoURL ||
-"";
+const avatar = user.photo || DEFAULT_PFP;
+const videoAvatar = user.videoPhoto || "";
 
 let avatarHTML;
 
-if(avatar && avatar.startsWith("data:video")){
+if(videoAvatar){
 
 avatarHTML = `
-<video class="userAvatar" autoplay loop muted>
-<source src="${avatar}" type="video/mp4">
+<video class="userAvatar" autoplay loop muted playsinline>
+<source src="${videoAvatar}" type="video/mp4">
 </video>
 `;
 
 }else{
 
-avatarHTML = `<img class="userAvatar" src="${avatar}">`;
+avatarHTML = `
+<img class="userAvatar" src="${avatar}" 
+onerror="this.src='${DEFAULT_PFP}'">
+`;
 
 }
 
@@ -263,14 +274,14 @@ ${avatarHTML}
 <b>${user.name || "User"}</b>
 `;
 
-div.onclick = ()=> openChat(docu.id,user.name);
+div.onclick = ()=> openChat(docu.id,user.name || "User");
 
 usersList.appendChild(div);
 
 });
 
 }catch(err){
-console.error("Load users error:",err);
+console.error(err);
 }
 
 }
@@ -279,8 +290,6 @@ console.error("Load users error:",err);
 /* ---------------- OPEN CHAT ---------------- */
 
 function openChat(uid,name){
-
-if(!currentUser) return;
 
 currentFriend = uid;
 chatID = [currentUser.uid,uid].sort().join("_");
@@ -314,21 +323,22 @@ snap.forEach(d=>{
 const m = d.data();
 const id = d.id;
 
-const avatar = m.photo || "";
-
 let avatarHTML;
 
-if(avatar && avatar.startsWith("data:video")){
+if(m.videoPhoto){
 
 avatarHTML = `
-<video class="msgAvatar" autoplay loop muted>
-<source src="${avatar}" type="video/mp4">
+<video class="msgAvatar" autoplay loop muted playsinline>
+<source src="${m.videoPhoto}" type="video/mp4">
 </video>
 `;
 
 }else{
 
-avatarHTML = `<img class="msgAvatar" src="${avatar}">`;
+avatarHTML = `
+<img class="msgAvatar" src="${m.photo || DEFAULT_PFP}"
+onerror="this.src='${DEFAULT_PFP}'">
+`;
 
 }
 
@@ -412,7 +422,7 @@ await updateDoc(ref,{
 });
 
 }catch(err){
-console.error("Reaction error:",err);
+console.error(err);
 }
 
 };
@@ -430,19 +440,14 @@ if(!text) return;
 try{
 
 const snap = await getDoc(doc(db,"users",currentUser.uid));
-const data = snap.data();
-
-const avatar =
-data.videoPhoto ||
-data.photo ||
-currentUser.photoURL ||
-"";
+const data = snap.data() || {};
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
 text:text,
 sender:currentUser.uid,
-photo:avatar,
+photo:data.photo || DEFAULT_PFP,
+videoPhoto:data.videoPhoto || "",
 reactions:{},
 time:Date.now()
 
@@ -451,7 +456,7 @@ time:Date.now()
 input.value="";
 
 }catch(err){
-console.error("Send message error:",err);
+console.error(err);
 }
 
 }
