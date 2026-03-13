@@ -14,6 +14,7 @@ collection,
 doc,
 setDoc,
 getDocs,
+getDoc,
 addDoc,
 query,
 where,
@@ -44,7 +45,6 @@ const provider = new GoogleAuthProvider();
 
 const googleBtn = document.getElementById("googleLogin");
 const usersList = document.getElementById("usersList");
-
 const chatBox = document.getElementById("chatBox");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
@@ -62,10 +62,11 @@ const gifPickerDiv = document.getElementById("gifPicker");
 let currentUser = null;
 let currentFriend = null;
 let chatID = null;
-let unsubscribeMessages = null;
 
 let emojiOpen = false;
 let gifOpen = false;
+
+let unsubscribeMessages = null;
 
 
 /* GOOGLE LOGIN */
@@ -74,17 +75,17 @@ if (googleBtn) {
 
 googleBtn.onclick = async () => {
 
-const result = await signInWithPopup(auth, provider);
-const user = result.user;
+const res = await signInWithPopup(auth, provider);
+const user = res.user;
 
-await setDoc(doc(db,"users",user.uid),{
-name:user.displayName,
-email:user.email,
-online:true,
-lastSeen:Date.now()
-},{merge:true});
+await setDoc(doc(db, "users", user.uid), {
+name: user.displayName,
+email: user.email,
+online: true,
+lastSeen: Date.now()
+}, { merge: true });
 
-window.location.href="chat.html";
+window.location = "chat.html";
 
 };
 
@@ -93,57 +94,58 @@ window.location.href="chat.html";
 
 /* AUTH STATE */
 
-onAuthStateChanged(auth, async (user)=>{
+onAuthStateChanged(auth, async (user) => {
 
-if(!user) return;
+if (!user) return;
 
-currentUser=user;
+currentUser = user;
 
-await setDoc(doc(db,"users",user.uid),{
-online:true
-},{merge:true});
+await setDoc(doc(db, "users", user.uid), {
+online: true
+}, { merge: true });
 
-window.addEventListener("beforeunload",()=>{
+window.addEventListener("beforeunload", () => {
 
-updateDoc(doc(db,"users",user.uid),{
-online:false,
-lastSeen:Date.now()
+setDoc(doc(db, "users", user.uid), {
+online: false,
+lastSeen: Date.now()
+}, { merge: true });
+
 });
 
-});
-
-if(usersList) loadUsers();
+loadUsers();
 
 });
 
 
 /* LOAD USERS */
 
-async function loadUsers(){
+async function loadUsers() {
 
-usersList.innerHTML="";
+if (!usersList) return;
 
-const snap=await getDocs(collection(db,"users"));
+usersList.innerHTML = "";
 
-snap.forEach(docu=>{
+const snap = await getDocs(collection(db, "users"));
 
-if(docu.id===currentUser.uid) return;
+snap.forEach(docu => {
 
-const user=docu.data();
+if (docu.id === currentUser.uid) return;
 
-const div=document.createElement("div");
+const user = docu.data();
 
-div.className="userRow";
+const div = document.createElement("div");
+div.className = "userRow";
 
-div.innerHTML=`
+div.innerHTML = `
 ${user.name}
 <span style="font-size:12px;color:gray">
-${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
+${user.online ? "🟢 Online" : "Last seen " + new Date(user.lastSeen).toLocaleTimeString()}
 </span>
 <span id="unread-${docu.id}" style="color:red;margin-left:8px"></span>
 `;
 
-div.onclick=()=>openChat(docu.id,user.name);
+div.onclick = () => openChat(docu.id, user.name);
 
 usersList.appendChild(div);
 
@@ -156,29 +158,26 @@ listenUnread(docu.id);
 
 /* UNREAD COUNTER */
 
-function listenUnread(uid){
+function listenUnread(uid) {
 
-const id=[currentUser.uid,uid].sort().join("_");
+const id = [currentUser.uid, uid].sort().join("_");
 
-const q=query(
-collection(db,"chats",id,"messages"),
-where("read","==",false)
+const q = query(
+collection(db, "chats", id, "messages"),
+where("read", "==", false)
 );
 
-onSnapshot(q,(snap)=>{
+onSnapshot(q, (snap) => {
 
-let count=0;
+let count = 0;
 
-snap.forEach(d=>{
-
-const m=d.data();
-if(m.sender===uid) count++;
-
+snap.forEach(d => {
+const m = d.data();
+if (m.sender === uid) count++;
 });
 
-const badge=document.getElementById("unread-"+uid);
-
-if(badge) badge.innerText=count>0?"("+count+")":"";
+const badge = document.getElementById("unread-" + uid);
+if (badge) badge.innerText = count > 0 ? "(" + count + ")" : "";
 
 });
 
@@ -187,146 +186,201 @@ if(badge) badge.innerText=count>0?"("+count+")":"";
 
 /* OPEN CHAT */
 
-function openChat(uid,name){
+function openChat(uid, name) {
 
-currentFriend=uid;
-chatID=[currentUser.uid,uid].sort().join("_");
+currentFriend = uid;
+chatID = [currentUser.uid, uid].sort().join("_");
 
-if(chatUser) chatUser.innerText=name;
+if (chatUser) chatUser.innerText = name;
 
-listenFriendStatus();
 listenMessages();
+listenFriendStatus();
 
 }
 
 
-/* STATUS */
+/* FRIEND STATUS */
 
-function listenFriendStatus(){
+function listenFriendStatus() {
 
-const ref=doc(db,"users",currentFriend);
+const ref = doc(db, "users", currentFriend);
 
-onSnapshot(ref,(docu)=>{
+onSnapshot(ref, (docu) => {
 
-const data=docu.data();
+const data = docu.data();
 
-const status=data.online?
-"🟢 Online":
-"Last seen "+new Date(data.lastSeen).toLocaleTimeString();
+const status = data.online ?
+"🟢 Online" :
+"Last seen " + new Date(data.lastSeen).toLocaleTimeString();
 
-chatUser.innerText=data.name+" ("+status+")";
+chatUser.innerText = data.name + " (" + status + ")";
 
 });
 
 }
 
 
-/* MESSAGES */
+/* LISTEN MESSAGES */
 
-function listenMessages(){
+function listenMessages() {
 
-if(!chatBox) return;
+if (unsubscribeMessages) unsubscribeMessages();
 
-if(unsubscribeMessages) unsubscribeMessages();
-
-const q=query(
-collection(db,"chats",chatID,"messages"),
+const q = query(
+collection(db, "chats", chatID, "messages"),
 orderBy("time")
 );
 
-unsubscribeMessages=onSnapshot(q,(snap)=>{
+unsubscribeMessages = onSnapshot(q, (snap) => {
 
-chatBox.innerHTML="";
+chatBox.innerHTML = "";
 
-snap.forEach(async(d)=>{
+snap.forEach(async (d) => {
 
-const m=d.data();
+const m = d.data();
 
-const div=document.createElement("div");
+const div = document.createElement("div");
+div.className = m.sender === currentUser.uid ? "sender" : "receiver";
 
-div.className=m.sender===currentUser.uid?"sender":"receiver";
 
-let content=m.text;
+/* CONTENT */
 
-if(m.gif){
-content=`<img src="${m.gif}" style="max-width:200px;border-radius:10px">`;
+let content = m.text || "";
+
+if (m.gif) {
+content = `<img src="${m.gif}" style="max-width:200px;border-radius:10px">`;
 }
 
-div.innerHTML=`
-${content}
+
+/* REACTIONS */
+
+let reactionsHTML = "";
+
+if (m.reactions) {
+
+Object.keys(m.reactions).forEach(r => {
+reactionsHTML += `<span style="margin-right:6px">${r} ${m.reactions[r]}</span>`;
+});
+
+}
+
+
+div.innerHTML = `
+<div>${content}</div>
+
 <div style="font-size:10px;color:gray">
 ${new Date(m.time).toLocaleTimeString()}
 </div>
+
+<div style="margin-top:5px">${reactionsHTML}</div>
 `;
+
+div.onclick = () => openReactionMenu(d.id);
 
 chatBox.appendChild(div);
 
-if(m.sender!==currentUser.uid && !m.read){
-updateDoc(d.ref,{read:true});
+
+/* MARK READ */
+
+if (m.sender !== currentUser.uid && !m.read) {
+updateDoc(d.ref, { read: true });
 }
 
 });
 
-chatBox.scrollTop=chatBox.scrollHeight;
+chatBox.scrollTop = chatBox.scrollHeight;
 
 });
+
+}
+
+
+/* REACTION MENU */
+
+function openReactionMenu(messageID) {
+
+const reaction = prompt("React with: 👍 ❤️ 😂 🔥");
+
+if (!reaction) return;
+
+addReaction(messageID, reaction);
+
+}
+
+
+/* ADD REACTION */
+
+async function addReaction(messageID, reaction) {
+
+const ref = doc(db, "chats", chatID, "messages", messageID);
+const snap = await getDoc(ref);
+
+if (!snap.exists()) return;
+
+const data = snap.data();
+const reactions = data.reactions || {};
+
+reactions[reaction] = (reactions[reaction] || 0) + 1;
+
+await updateDoc(ref, { reactions });
 
 }
 
 
 /* SEND MESSAGE */
 
-async function sendMessage(){
+async function sendMessage() {
 
-if(!input || !currentFriend) return;
-if(!input.value.trim()) return;
+if (!currentFriend) return;
+if (!input.value.trim()) return;
 
-await addDoc(collection(db,"chats",chatID,"messages"),{
+await addDoc(collection(db, "chats", chatID, "messages"), {
 
-text:input.value,
-sender:currentUser.uid,
-time:Date.now(),
-read:false
+text: input.value,
+sender: currentUser.uid,
+time: Date.now(),
+read: false
 
 });
 
-input.value="";
+input.value = "";
 
 }
 
 
 /* SEND GIF */
 
-async function sendGif(url){
+async function sendGif(url) {
 
-await addDoc(collection(db,"chats",chatID,"messages"),{
+await addDoc(collection(db, "chats", chatID, "messages"), {
 
-gif:url,
-sender:currentUser.uid,
-time:Date.now(),
-read:false
+gif: url,
+sender: currentUser.uid,
+time: Date.now(),
+read: false
 
 });
 
-gifPickerDiv.innerHTML="";
-gifOpen=false;
+gifPickerDiv.innerHTML = "";
+gifOpen = false;
 
 }
 
 
 /* SEND BUTTON */
 
-if(sendBtn) sendBtn.onclick=sendMessage;
+if (sendBtn) sendBtn.onclick = sendMessage;
 
-if(input){
 
-input.addEventListener("keydown",(e)=>{
+/* ENTER SEND */
 
-if(e.key==="Enter"){
+if (input) {
 
+input.addEventListener("keydown", (e) => {
+
+if (e.key === "Enter") {
 e.preventDefault();
 sendMessage();
-
 }
 
 });
@@ -334,81 +388,82 @@ sendMessage();
 }
 
 
-/* EMOJI PICKER TOGGLE */
+/* EMOJI PICKER */
 
-if(emojiBtn){
+if (emojiBtn) {
 
-emojiBtn.onclick=()=>{
+emojiBtn.onclick = () => {
 
-if(emojiOpen){
+if (emojiOpen) {
 
-emojiPickerDiv.innerHTML="";
-emojiOpen=false;
+emojiPickerDiv.innerHTML = "";
+emojiOpen = false;
 return;
 
 }
 
-gifPickerDiv.innerHTML="";
-gifOpen=false;
+gifPickerDiv.innerHTML = "";
+gifOpen = false;
 
-emojiPickerDiv.innerHTML="";
+if (typeof EmojiMart === "undefined") {
+alert("Emoji library not loaded");
+return;
+}
 
-const picker=new EmojiMart.Picker({
-onEmojiSelect:(emoji)=>{
-input.value+=emoji.native;
+const picker = new EmojiMart.Picker({
+onEmojiSelect: (emoji) => {
+input.value += emoji.native;
 }
 });
 
 emojiPickerDiv.appendChild(picker);
-
-emojiOpen=true;
+emojiOpen = true;
 
 };
 
 }
 
 
-/* GIF PICKER TOGGLE */
+/* GIF PICKER */
 
-if(gifBtn){
+if (gifBtn) {
 
-gifBtn.onclick=async()=>{
+gifBtn.onclick = async () => {
 
-if(gifOpen){
+if (gifOpen) {
 
-gifPickerDiv.innerHTML="";
-gifOpen=false;
+gifPickerDiv.innerHTML = "";
+gifOpen = false;
 return;
 
 }
 
-emojiPickerDiv.innerHTML="";
-emojiOpen=false;
+emojiPickerDiv.innerHTML = "";
+emojiOpen = false;
 
-gifPickerDiv.innerHTML="Loading GIFs...";
+gifPickerDiv.innerHTML = "Loading GIFs...";
 
-const res=await fetch("https://g.tenor.com/v1/trending?key=LIVDSRZULELA&limit=20");
-const data=await res.json();
+const res = await fetch("https://g.tenor.com/v1/trending?key=LIVDSRZULELA&limit=20");
+const data = await res.json();
 
-gifPickerDiv.innerHTML="";
+gifPickerDiv.innerHTML = "";
 
-data.results.forEach(g=>{
+data.results.forEach(g => {
 
-const img=document.createElement("img");
+const img = document.createElement("img");
 
-img.src=g.media[0].gif.url;
+img.src = g.media[0].gif.url;
+img.style.width = "100px";
+img.style.margin = "5px";
+img.style.cursor = "pointer";
 
-img.style.width="100px";
-img.style.margin="5px";
-img.style.cursor="pointer";
-
-img.onclick=()=>sendGif(g.media[0].gif.url);
+img.onclick = () => sendGif(g.media[0].gif.url);
 
 gifPickerDiv.appendChild(img);
 
 });
 
-gifOpen=true;
+gifOpen = true;
 
 };
 
