@@ -1,32 +1,176 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
-<title>Chat App</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Chat App Login</title>
+
+<style>
+
+/* PAGE */
+
+body{
+margin:0;
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:#f0f2f5;
+font-family:Arial, Helvetica, sans-serif;
+}
+
+
+/* LOGIN BOX */
+
+#loginBox{
+background:white;
+padding:40px;
+border-radius:10px;
+box-shadow:0 4px 15px rgba(0,0,0,0.1);
+text-align:center;
+width:300px;
+}
+
+
+/* TITLE */
+
+#loginBox h2{
+margin-bottom:25px;
+}
+
+
+/* GOOGLE BUTTON */
+
+#googleLogin{
+display:flex;
+align-items:center;
+justify-content:center;
+gap:10px;
+width:100%;
+padding:12px;
+border:none;
+border-radius:6px;
+background:#4285F4;
+color:white;
+font-size:15px;
+cursor:pointer;
+transition:0.2s;
+}
+
+#googleLogin:hover{
+background:#3367d6;
+}
+
+
+/* GOOGLE ICON */
+
+#googleLogin img{
+width:18px;
+height:18px;
+}
+
+</style>
+
 </head>
-<body class="login">
 
-<h1>💬 Chat App</h1>
 
-<button id="googleLogin">Login with Google</button>
+<body>
 
-<br><br>
 
-<button onclick="openAdmin()">ADMIN</button>
+<div id="loginBox">
 
-<script>
-function openAdmin(){
-const pass = prompt("Enter admin password");
-if(pass === "2309"){
-window.location.href = "admin.html";
-}else{
-alert("Wrong password");
+<h2>Chat App</h2>
+
+<button id="googleLogin">
+
+<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg">
+
+Login with Google
+
+</button>
+
+</div>
+
+
+
+<!-- FIREBASE LOGIN SCRIPT -->
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+
+import {
+getAuth,
+GoogleAuthProvider,
+signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+import {
+getFirestore,
+doc,
+setDoc
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+
+const firebaseConfig = {
+
+apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
+authDomain: "chatgithub-e838d.firebaseapp.com",
+projectId: "chatgithub-e838d",
+storageBucket: "chatgithub-e838d.firebasestorage.app",
+messagingSenderId: "755589384017",
+appId: "1:755589384017:web:6af4c6d223d646cf36f570"
+
+};
+
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const provider = new GoogleAuthProvider();
+
+const googleBtn = document.getElementById("googleLogin");
+
+
+googleBtn.onclick = async () => {
+
+try{
+
+const result = await signInWithPopup(auth, provider);
+
+const user = result.user;
+
+
+await setDoc(doc(db,"users",user.uid),{
+
+name:user.displayName,
+email:user.email,
+photo:user.photoURL,
+online:true,
+lastSeen:Date.now()
+
+},{merge:true});
+
+
+window.location = "chat.html";
+
 }
+
+catch(error){
+
+alert("Login Failed: " + error.message);
+
 }
+
+};
+
 </script>
 
-<script type="module" src="app.js"></script>
+
 </body>
+
 </html>
