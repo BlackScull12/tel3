@@ -64,6 +64,9 @@ let currentFriend = null;
 let chatID = null;
 let unsubscribeMessages = null;
 
+let emojiOpen = false;
+let gifOpen = false;
+
 
 /* GOOGLE LOGIN */
 
@@ -88,7 +91,7 @@ window.location.href="chat.html";
 }
 
 
-/* AUTH */
+/* AUTH STATE */
 
 onAuthStateChanged(auth, async (user)=>{
 
@@ -169,7 +172,6 @@ let count=0;
 snap.forEach(d=>{
 
 const m=d.data();
-
 if(m.sender===uid) count++;
 
 });
@@ -219,7 +221,7 @@ chatUser.innerText=data.name+" ("+status+")";
 }
 
 
-/* LISTEN MESSAGES */
+/* MESSAGES */
 
 function listenMessages(){
 
@@ -246,12 +248,8 @@ div.className=m.sender===currentUser.uid?"sender":"receiver";
 
 let content=m.text;
 
-/* GIF SUPPORT */
-
 if(m.gif){
-
 content=`<img src="${m.gif}" style="max-width:200px;border-radius:10px">`;
-
 }
 
 div.innerHTML=`
@@ -264,9 +262,7 @@ ${new Date(m.time).toLocaleTimeString()}
 chatBox.appendChild(div);
 
 if(m.sender!==currentUser.uid && !m.read){
-
 updateDoc(d.ref,{read:true});
-
 }
 
 });
@@ -278,12 +274,11 @@ chatBox.scrollTop=chatBox.scrollHeight;
 }
 
 
-/* SEND TEXT MESSAGE */
+/* SEND MESSAGE */
 
 async function sendMessage(){
 
 if(!input || !currentFriend) return;
-
 if(!input.value.trim()) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
@@ -314,11 +309,12 @@ read:false
 });
 
 gifPickerDiv.innerHTML="";
+gifOpen=false;
 
 }
 
 
-/* BUTTONS */
+/* SEND BUTTON */
 
 if(sendBtn) sendBtn.onclick=sendMessage;
 
@@ -338,41 +334,60 @@ sendMessage();
 }
 
 
-/* EMOJI PICKER */
+/* EMOJI PICKER TOGGLE */
 
 if(emojiBtn){
 
 emojiBtn.onclick=()=>{
 
+if(emojiOpen){
+
 emojiPickerDiv.innerHTML="";
-
-const picker=new EmojiMart.Picker({
-
-onEmojiSelect:(emoji)=>{
-
-input.value+=emoji.native;
+emojiOpen=false;
+return;
 
 }
 
+gifPickerDiv.innerHTML="";
+gifOpen=false;
+
+emojiPickerDiv.innerHTML="";
+
+const picker=new EmojiMart.Picker({
+onEmojiSelect:(emoji)=>{
+input.value+=emoji.native;
+}
 });
 
 emojiPickerDiv.appendChild(picker);
+
+emojiOpen=true;
 
 };
 
 }
 
 
-/* GIF PICKER */
+/* GIF PICKER TOGGLE */
 
 if(gifBtn){
 
 gifBtn.onclick=async()=>{
 
+if(gifOpen){
+
+gifPickerDiv.innerHTML="";
+gifOpen=false;
+return;
+
+}
+
+emojiPickerDiv.innerHTML="";
+emojiOpen=false;
+
 gifPickerDiv.innerHTML="Loading GIFs...";
 
 const res=await fetch("https://g.tenor.com/v1/trending?key=LIVDSRZULELA&limit=20");
-
 const data=await res.json();
 
 gifPickerDiv.innerHTML="";
@@ -392,6 +407,8 @@ img.onclick=()=>sendGif(g.media[0].gif.url);
 gifPickerDiv.appendChild(img);
 
 });
+
+gifOpen=true;
 
 };
 
