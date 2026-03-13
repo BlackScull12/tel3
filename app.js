@@ -1,8 +1,11 @@
+/* FIREBASE IMPORTS */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 
 import {
 getAuth,
+GoogleAuthProvider,
+signInWithPopup,
 onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
@@ -10,42 +13,109 @@ import {
 getFirestore,
 collection,
 doc,
+setDoc,
 getDocs,
 addDoc,
+query,
 onSnapshot,
 updateDoc,
-orderBy,
-query
+orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-const firebaseConfig={
-apiKey:"APIKEY",
-authDomain:"PROJECT.firebaseapp.com",
-projectId:"PROJECT",
+
+/* FIREBASE CONFIG */
+
+const firebaseConfig = {
+
+apiKey: "YOUR_API_KEY",
+authDomain: "YOUR_PROJECT.firebaseapp.com",
+projectId: "YOUR_PROJECT",
+storageBucket: "YOUR_PROJECT.appspot.com",
+messagingSenderId: "XXXX",
+appId: "XXXX"
+
 };
 
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getFirestore(app);
 
-const usersList=document.getElementById("usersList");
-const chatBox=document.getElementById("chatBox");
-const input=document.getElementById("messageInput");
-const sendBtn=document.getElementById("sendBtn");
-const chatUser=document.getElementById("chatUser");
+/* INIT */
 
-let currentUser=null;
-let currentFriend=null;
-let chatID=null;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
 
-/* AUTH */
+/* DOM */
 
-onAuthStateChanged(auth,user=>{
+const googleBtn = document.getElementById("googleLogin");
+const usersList = document.getElementById("usersList");
 
-if(!user)return;
+const chatBox = document.getElementById("chatBox");
+const input = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const chatUser = document.getElementById("chatUser");
+
+const emojiBtn = document.getElementById("emojiBtn");
+const gifBtn = document.getElementById("gifBtn");
+
+const emojiPicker = document.getElementById("emojiPicker");
+const gifPicker = document.getElementById("gifPicker");
+
+
+/* STATE */
+
+let currentUser = null;
+let currentFriend = null;
+let chatID = null;
+
+
+/* LOGIN */
+
+if(googleBtn){
+
+googleBtn.onclick = async () => {
+
+const res = await signInWithPopup(auth,provider);
+const user = res.user;
+
+await setDoc(doc(db,"users",user.uid),{
+
+name:user.displayName,
+email:user.email,
+photo:user.photoURL,
+online:true,
+lastSeen:Date.now()
+
+},{merge:true});
+
+window.location="chat.html";
+
+};
+
+}
+
+
+/* AUTH STATE */
+
+onAuthStateChanged(auth, async(user)=>{
+
+if(!user) return;
 
 currentUser=user;
+
+await updateDoc(doc(db,"users",user.uid),{
+online:true
+});
+
+window.addEventListener("beforeunload",async()=>{
+
+await updateDoc(doc(db,"users",user.uid),{
+online:false,
+lastSeen:Date.now()
+});
+
+});
+
 loadUsers();
 
 });
@@ -55,19 +125,28 @@ loadUsers();
 
 async function loadUsers(){
 
+if(!usersList) return;
+
 usersList.innerHTML="";
 
-const snap=await getDocs(collection(db,"users"));
+const snap = await getDocs(collection(db,"users"));
 
 snap.forEach(docu=>{
 
-if(docu.id===currentUser.uid)return;
+if(docu.id===currentUser.uid) return;
 
-const user=docu.data();
+const user = docu.data();
 
-const div=document.createElement("div");
+const div = document.createElement("div");
+
 div.className="userRow";
-div.innerText=user.name;
+
+div.innerHTML = `
+${user.name}
+<span style="font-size:12px;color:gray">
+${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen).toLocaleTimeString()}
+</span>
+`;
 
 div.onclick=()=>openChat(docu.id,user.name);
 
@@ -82,10 +161,10 @@ usersList.appendChild(div);
 
 function openChat(uid,name){
 
-currentFriend=uid;
-chatID=[currentUser.uid,uid].sort().join("_");
+currentFriend = uid;
+chatID = [currentUser.uid,uid].sort().join("_");
 
-chatUser.innerText=name;
+chatUser.innerText = name;
 
 listenMessages();
 
@@ -96,12 +175,12 @@ listenMessages();
 
 function listenMessages(){
 
-const q=query(
+const q = query(
 collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
-onSnapshot(q,snap=>{
+onSnapshot(q,(snap)=>{
 
 chatBox.innerHTML="";
 
@@ -110,6 +189,7 @@ snap.forEach(d=>{
 const m=d.data();
 
 const div=document.createElement("div");
+
 div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
 
 div.innerHTML=`
@@ -124,8 +204,12 @@ div.innerHTML=`
 
 ${m.text}
 
-<div class="reactions" id="react-${d.id}">
+<div class="reactions">
 ${renderReactions(m.reactions)}
+</div>
+
+<div class="messageTime">
+${new Date(m.time).toLocaleTimeString()}
 </div>
 
 `;
@@ -134,7 +218,7 @@ chatBox.appendChild(div);
 
 });
 
-chatBox.scrollTop=chatBox.scrollHeight;
+chatBox.scrollTop = chatBox.scrollHeight;
 
 });
 
@@ -145,22 +229,21 @@ chatBox.scrollTop=chatBox.scrollHeight;
 
 function renderReactions(reactions){
 
-if(!reactions)return "";
+if(!reactions) return "";
 
-let result={};
+let counts={};
 
 Object.values(reactions).forEach(e=>{
 
-if(!result[e])result[e]=0;
-result[e]++;
+counts[e]=(counts[e]||0)+1;
 
 });
 
 let html="";
 
-for(let e in result){
+for(let e in counts){
 
-html+=`${e} ${result[e]} `;
+html+=`${e} ${counts[e]} `;
 
 }
 
@@ -169,24 +252,26 @@ return html;
 }
 
 
-/* REACT FUNCTION */
+/* REACT */
 
-window.react=async function(messageId,emoji){
+window.react = async function(messageId,emoji){
 
-const ref=doc(db,"chats",chatID,"messages",messageId);
+const ref = doc(db,"chats",chatID,"messages",messageId);
 
 await updateDoc(ref,{
 ["reactions."+currentUser.uid]:emoji
 });
 
-}
+};
 
 
 /* SEND MESSAGE */
 
 async function sendMessage(){
 
-if(!input.value.trim())return;
+if(!input || !chatID) return;
+
+if(!input.value.trim()) return;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
@@ -200,8 +285,61 @@ input.value="";
 
 }
 
+
+/* SEND BUTTON */
+
+if(sendBtn){
+
 sendBtn.onclick=sendMessage;
 
-input.addEventListener("keypress",e=>{
-if(e.key==="Enter")sendMessage();
+}
+
+
+/* ENTER KEY */
+
+if(input){
+
+input.addEventListener("keypress",(e)=>{
+
+if(e.key==="Enter"){
+
+e.preventDefault();
+sendMessage();
+
+}
+
 });
+
+}
+
+
+/* EMOJI PICKER */
+
+if(emojiBtn){
+
+emojiBtn.onclick=()=>{
+
+emojiPicker.style.display =
+emojiPicker.style.display==="block"?"none":"block";
+
+gifPicker.style.display="none";
+
+};
+
+}
+
+
+/* GIF PICKER */
+
+if(gifBtn){
+
+gifBtn.onclick=()=>{
+
+gifPicker.style.display =
+gifPicker.style.display==="block"?"none":"block";
+
+emojiPicker.style.display="none";
+
+};
+
+}
