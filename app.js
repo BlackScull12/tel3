@@ -99,7 +99,7 @@ videoPhoto:""
 window.location = "chat.html";
 
 }catch(err){
-console.error("Login error:",err);
+console.error(err);
 }
 
 };
@@ -118,20 +118,12 @@ currentUser = user;
 try{
 
 const snap = await getDoc(doc(db,"users",user.uid));
+const data = snap.exists() ? snap.data() : {};
 
-let avatar = DEFAULT_PFP;
-let videoAvatar = "";
+const avatar = data.photo || user.photoURL || DEFAULT_PFP;
+const videoAvatar = data.videoPhoto || "";
 
-if(snap.exists()){
-
-const data = snap.data();
-
-avatar = data.photo || user.photoURL || DEFAULT_PFP;
-videoAvatar = data.videoPhoto || "";
-
-}
-
-renderAvatar(myProfilePic, avatar, videoAvatar);
+renderAvatar(myProfilePic,avatar,videoAvatar);
 
 loadUsers();
 
@@ -182,8 +174,12 @@ renderAvatar(myProfilePic,base64,"");
 
 }else{
 
-alert("Only MP4 or image files allowed");
+alert("Only image or MP4 allowed");
+return;
+
 }
+
+/* immediately update UI everywhere */
 
 loadUsers();
 
@@ -200,13 +196,13 @@ reader.readAsDataURL(file);
 }
 
 
-/* ---------------- RENDER AVATAR ---------------- */
+/* ---------------- AVATAR RENDER ---------------- */
 
 function renderAvatar(container,image,video){
 
 if(!container) return;
 
-if(video){
+if(video && video.length > 20){
 
 container.innerHTML = `
 <video class="profilePic" autoplay loop muted playsinline>
@@ -217,7 +213,8 @@ container.innerHTML = `
 }else{
 
 container.innerHTML = `
-<img class="profilePic" src="${image || DEFAULT_PFP}" 
+<img class="profilePic"
+src="${image || DEFAULT_PFP}"
 onerror="this.src='${DEFAULT_PFP}'">
 `;
 
@@ -242,14 +239,14 @@ snap.forEach(docu=>{
 
 if(docu.id === currentUser.uid) return;
 
-const user = docu.data();
+const user = docu.data() || {};
 
 const avatar = user.photo || DEFAULT_PFP;
 const videoAvatar = user.videoPhoto || "";
 
 let avatarHTML;
 
-if(videoAvatar){
+if(videoAvatar && videoAvatar.length > 20){
 
 avatarHTML = `
 <video class="userAvatar" autoplay loop muted playsinline>
@@ -260,7 +257,8 @@ avatarHTML = `
 }else{
 
 avatarHTML = `
-<img class="userAvatar" src="${avatar}" 
+<img class="userAvatar"
+src="${avatar}"
 onerror="this.src='${DEFAULT_PFP}'">
 `;
 
@@ -320,12 +318,12 @@ chatBox.innerHTML = "";
 
 snap.forEach(d=>{
 
-const m = d.data();
+const m = d.data() || {};
 const id = d.id;
 
 let avatarHTML;
 
-if(m.videoPhoto){
+if(m.videoPhoto && m.videoPhoto.length > 20){
 
 avatarHTML = `
 <video class="msgAvatar" autoplay loop muted playsinline>
@@ -336,7 +334,8 @@ avatarHTML = `
 }else{
 
 avatarHTML = `
-<img class="msgAvatar" src="${m.photo || DEFAULT_PFP}"
+<img class="msgAvatar"
+src="${m.photo || DEFAULT_PFP}"
 onerror="this.src='${DEFAULT_PFP}'">
 `;
 
@@ -348,12 +347,11 @@ div.className =
 "message " + (m.sender===currentUser.uid?"sender":"receiver");
 
 div.innerHTML = `
-
 ${avatarHTML}
 
 <div class="msgBubble">
 
-${m.text || ""}
+<div class="msgText"></div>
 
 <div class="reactionBar">
 
@@ -376,11 +374,15 @@ ${new Date(m.time || Date.now()).toLocaleTimeString()}
 </div>
 `;
 
+div.querySelector(".msgText").textContent = m.text || "";
+
 chatBox.appendChild(div);
 
 });
 
+setTimeout(()=>{
 chatBox.scrollTop = chatBox.scrollHeight;
+},50);
 
 });
 
@@ -418,7 +420,7 @@ try{
 const ref = doc(db,"chats",chatID,"messages",id);
 
 await updateDoc(ref,{
-["reactions."+currentUser.uid]:emoji
+[`reactions.${currentUser.uid}`]:emoji
 });
 
 }catch(err){
@@ -440,7 +442,7 @@ if(!text) return;
 try{
 
 const snap = await getDoc(doc(db,"users",currentUser.uid));
-const data = snap.data() || {};
+const data = snap.exists() ? snap.data() : {};
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
