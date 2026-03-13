@@ -1,42 +1,198 @@
 
 <!DOCTYPE html>
 <html>
+
 <head>
+
+<title>Chat App</title>
+
 <meta charset="UTF-8">
-<title>Chat</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+display:flex;
+height:100vh;
+background:#f0f2f5;
+}
+
+/* USER LIST */
+
+#usersList{
+width:30%;
+background:white;
+border-right:1px solid #ccc;
+overflow-y:auto;
+}
+
+.userRow{
+padding:15px;
+border-bottom:1px solid #eee;
+cursor:pointer;
+}
+
+.userRow:hover{
+background:#f5f5f5;
+}
+
+/* CHAT AREA */
+
+#chatArea{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+/* CHAT HEADER */
+
+#chatHeader{
+padding:15px;
+background:#0084ff;
+color:white;
+font-weight:bold;
+}
+
+/* CHAT MESSAGES */
+
+#chatBox{
+flex:1;
+padding:15px;
+overflow-y:auto;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+/* MESSAGE BUBBLES */
+
+.sender{
+align-self:flex-end;
+background:#0084ff;
+color:white;
+padding:10px;
+border-radius:10px;
+max-width:60%;
+}
+
+.receiver{
+align-self:flex-start;
+background:#e4e6eb;
+padding:10px;
+border-radius:10px;
+max-width:60%;
+}
+
+/* INPUT AREA */
+
+#chatInput{
+display:flex;
+padding:10px;
+background:white;
+border-top:1px solid #ccc;
+gap:5px;
+}
+
+#chatInput input{
+flex:1;
+padding:10px;
+border-radius:20px;
+border:1px solid #ccc;
+outline:none;
+}
+
+#chatInput button{
+padding:10px 15px;
+border:none;
+border-radius:20px;
+cursor:pointer;
+background:#0084ff;
+color:white;
+}
+
+/* EMOJI + GIF PICKERS */
+
+#emojiPicker,
+#gifPicker{
+position:absolute;
+bottom:80px;
+right:20px;
+background:white;
+border:1px solid #ccc;
+border-radius:10px;
+max-height:300px;
+overflow:auto;
+z-index:1000;
+}
+
+</style>
+
 </head>
+
+
 <body>
 
-<div class="topBar">
-<span>Users</span>
-<span id="bell">🔔 <span id="reqCount"></span></span>
+
+<!-- USERS LIST -->
+
+<div id="usersList"></div>
+
+
+
+<!-- CHAT AREA -->
+
+<div id="chatArea">
+
+
+<div id="chatHeader">
+
+<span id="chatUser">Select a user to chat</span>
+
 </div>
 
-<div class="container">
 
-<div class="users" id="usersList"></div>
+<div id="chatBox"></div>
 
-<div class="chat">
 
-<div class="chatHeader">
-<span id="chatUser">Select a friend</span>
-</div>
 
-<div class="chatArea" id="chatBox"></div>
+<!-- CHAT INPUT -->
 
-<div class="inputArea">
-<input id="messageInput" placeholder="Type message">
+<div id="chatInput">
+
+<button id="emojiBtn">😀</button>
+
+<button id="gifBtn">GIF</button>
+
+<input id="messageInput" placeholder="Type message...">
+
 <button id="sendBtn">Send</button>
-</div>
 
 </div>
 
+
 </div>
 
-<div id="requestsPanel" class="requestsPanel"></div>
+
+<!-- PICKERS -->
+
+<div id="emojiPicker"></div>
+
+<div id="gifPicker"></div>
+
+
+
+<!-- EMOJI LIBRARY -->
+
+<script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
+
+
+<!-- FIREBASE CHAT SCRIPT -->
 
 <script type="module" src="app.js"></script>
 
+
 </body>
+
 </html>
