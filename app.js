@@ -27,18 +27,16 @@ getDoc
 /* FIREBASE CONFIG */
 
 const firebaseConfig = {
-
 apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
 authDomain: "chatgithub-e838d.firebaseapp.com",
 projectId: "chatgithub-e838d",
 storageBucket: "chatgithub-e838d.firebasestorage.app",
 messagingSenderId: "755589384017",
 appId: "1:755589384017:web:6af4c6d223d646cf36f570"
-
 };
 
 
-/* KLIPY GIF API */
+/* GIF API */
 
 const KLIPY_API_KEY="GMuQzaqlWpM7rtGovFj5OIlNZQfyiAwVJFBXDvavpCjMbbmgkryWv5V3XQx53HxI";
 
@@ -56,10 +54,11 @@ const provider=new GoogleAuthProvider();
 const googleBtn=document.getElementById("googleLogin");
 
 const usersList=document.getElementById("usersList");
-
 const chatBox=document.getElementById("chatBox");
+
 const input=document.getElementById("messageInput");
 const sendBtn=document.getElementById("sendBtn");
+
 const chatUser=document.getElementById("chatUser");
 
 const emojiBtn=document.getElementById("emojiBtn");
@@ -74,6 +73,11 @@ const profileUpload=document.getElementById("profileUpload");
 const uploadBtn=document.getElementById("uploadBtn");
 const myProfilePic=document.getElementById("myProfilePic");
 
+const pinnedBar=document.getElementById("pinnedBar");
+const pinnedText=document.getElementById("pinnedText");
+
+const themeToggle=document.getElementById("themeToggle");
+
 
 /* STATE */
 
@@ -81,6 +85,28 @@ let currentUser=null;
 let currentFriend=null;
 let chatID=null;
 let unsubscribeMessages=null;
+
+
+/* DARK MODE */
+
+if(themeToggle){
+
+themeToggle.onclick=()=>{
+
+document.body.classList.toggle("dark");
+
+localStorage.setItem(
+"theme",
+document.body.classList.contains("dark")?"dark":"light"
+);
+
+};
+
+}
+
+if(localStorage.getItem("theme")==="dark"){
+document.body.classList.add("dark");
+}
 
 
 /* LOGIN */
@@ -110,15 +136,13 @@ window.location="chat.html";
 }
 
 
-/* AUTH STATE */
+/* AUTH */
 
 onAuthStateChanged(auth,async(user)=>{
 
 if(!user) return;
 
 currentUser=user;
-
-/* load profile */
 
 const snap=await getDoc(doc(db,"users",user.uid));
 
@@ -151,11 +175,17 @@ loadUsers();
 });
 
 
-/* PROFILE UPLOAD */
+/* PROFILE UPLOAD FIX */
 
-if(uploadBtn){
+if(uploadBtn && profileUpload){
 
 uploadBtn.onclick=()=>{
+
+profileUpload.click();
+
+};
+
+profileUpload.addEventListener("change",()=>{
 
 const file=profileUpload.files[0];
 if(!file) return;
@@ -188,7 +218,7 @@ myProfilePic.src=base64;
 
 reader.readAsDataURL(file);
 
-};
+});
 
 }
 
@@ -209,30 +239,22 @@ if(docu.id===currentUser.uid) return;
 
 const user=docu.data();
 
+const avatar=user.animatedPhoto || user.photo || "https://i.imgur.com/HeIi0wU.png";
+
 const div=document.createElement("div");
 div.className="userRow";
 
-const avatar=user.animatedPhoto || user.photo || "https://i.imgur.com/HeIi0wU.png";
-
 div.innerHTML=`
-
 <img src="${avatar}">
-
 <div class="userInfo">
-
 <b>${user.name}</b>
-
 <span style="font-size:12px;color:gray">
-
 ${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen||Date.now()).toLocaleTimeString()}
-
 </span>
-
 </div>
-
 `;
 
-div.onclick=()=>openChat(docu.id,user.name,avatar);
+div.onclick=()=>openChat(docu.id,user.name);
 
 usersList.appendChild(div);
 
@@ -243,68 +265,56 @@ usersList.appendChild(div);
 
 /* OPEN CHAT */
 
-async function openChat(uid,name,avatar){
+function openChat(uid,name){
 
 currentFriend=uid;
 chatID=[currentUser.uid,uid].sort().join("_");
 
-loadNickname(name);
+chatUser.innerText=name;
 
 if(unsubscribeMessages) unsubscribeMessages();
 
 listenMessages();
+listenPinned();
 
 }
 
 
-/* LOAD NICKNAME */
+/* PINNED MESSAGES */
 
-async function loadNickname(defaultName){
+function listenPinned(){
 
-if(!chatUser) return;
+if(!pinnedBar) return;
 
-const ref=doc(db,"chats",chatID);
-const snap=await getDoc(ref);
-
-if(snap.exists()){
+onSnapshot(doc(db,"chats",chatID),(snap)=>{
 
 const data=snap.data();
 
-if(data.nicknames && data.nicknames[currentFriend]){
-chatUser.innerText=data.nicknames[currentFriend];
+if(!data || !data.pinned){
+
+pinnedBar.style.display="none";
 return;
-}
 
 }
 
-chatUser.innerText=defaultName;
+pinnedBar.style.display="block";
+pinnedText.innerText=data.pinned;
+
+});
 
 }
 
 
-/* CHANGE NICKNAME */
-
-if(nicknameBtn){
-
-nicknameBtn.onclick=async()=>{
-
-if(!chatID) return;
-
-const name=prompt("Enter nickname:");
-if(!name) return;
+window.pin=async function(text){
 
 await setDoc(doc(db,"chats",chatID),{
-nicknames:{[currentFriend]:name}
+pinned:text
 },{merge:true});
-
-chatUser.innerText=name;
 
 };
 
-}
 
-
-/* LISTEN MESSAGES */
+/* MESSAGES */
 
 function listenMessages(){
 
@@ -324,7 +334,6 @@ snap.forEach(d=>{
 const m=d.data();
 
 const div=document.createElement("div");
-
 div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
 
 const avatar=m.photo || "https://i.imgur.com/HeIi0wU.png";
@@ -343,6 +352,7 @@ ${m.text}
 <span onclick="react('${d.id}','😂')">😂</span>
 <span onclick="react('${d.id}','😮')">😮</span>
 <span onclick="react('${d.id}','😢')">😢</span>
+<span onclick="pin('${m.text}')">📌</span>
 </div>
 
 <div class="reactions">
@@ -354,7 +364,6 @@ ${new Date(m.time).toLocaleTimeString()}
 </div>
 
 </div>
-
 `;
 
 chatBox.appendChild(div);
@@ -445,20 +454,15 @@ sendMessage();
 if(emojiPicker && window.EmojiMart){
 
 const picker=new EmojiMart.Picker({
-
 onEmojiSelect:(emoji)=>{
 input.value+=emoji.native;
 }
-
 });
 
 emojiPicker.appendChild(picker);
 emojiPicker.style.display="none";
 
 }
-
-
-/* EMOJI BUTTON */
 
 if(emojiBtn){
 
@@ -467,7 +471,7 @@ emojiBtn.onclick=()=>{
 emojiPicker.style.display=
 emojiPicker.style.display==="block"?"none":"block";
 
-if(gifPicker) gifPicker.style.display="none";
+gifPicker.style.display="none";
 
 };
 
@@ -479,11 +483,8 @@ if(gifPicker) gifPicker.style.display="none";
 if(gifPicker){
 
 gifPicker.innerHTML=`
-
 <input id="gifSearch" placeholder="Search GIFs..." style="width:100%;padding:8px;border:none;border-bottom:1px solid #ccc">
-
 <div id="gifResults" style="display:flex;flex-wrap:wrap;gap:5px;padding:5px"></div>
-
 `;
 
 gifPicker.style.display="none";
@@ -493,24 +494,23 @@ const gifResults=document.getElementById("gifResults");
 
 gifSearch.addEventListener("input",async()=>{
 
-const queryText=gifSearch.value.trim();
-if(!queryText) return;
+const q=gifSearch.value.trim();
+if(!q) return;
 
-const res=await fetch(`https://api.klipy.com/gifs/search?q=${queryText}&apikey=${KLIPY_API_KEY}&limit=20`);
+try{
 
+const res=await fetch(`https://api.klipy.com/gifs/search?q=${q}&apikey=${KLIPY_API_KEY}&limit=20`);
 const data=await res.json();
 
 gifResults.innerHTML="";
 
-data.data.forEach(gif=>{
+data.data.forEach(g=>{
 
-const url=gif.images.original.url;
+const url=g.images.original.url;
 
 const img=document.createElement("img");
-
 img.src=url;
 img.style.width="100px";
-img.style.cursor="pointer";
 
 img.onclick=async()=>{
 
@@ -531,12 +531,15 @@ gifResults.appendChild(img);
 
 });
 
-});
+}catch(e){
+
+console.error("GIF search error",e);
 
 }
 
+});
 
-/* GIF BUTTON */
+}
 
 if(gifBtn){
 
@@ -545,7 +548,7 @@ gifBtn.onclick=()=>{
 gifPicker.style.display=
 gifPicker.style.display==="block"?"none":"block";
 
-if(emojiPicker) emojiPicker.style.display="none";
+emojiPicker.style.display="none";
 
 };
 
@@ -556,20 +559,12 @@ if(emojiPicker) emojiPicker.style.display="none";
 
 document.addEventListener("click",(e)=>{
 
-if(emojiPicker && emojiBtn){
-
-if(!emojiPicker.contains(e.target) && e.target!==emojiBtn){
+if(emojiPicker && !emojiPicker.contains(e.target) && e.target!==emojiBtn){
 emojiPicker.style.display="none";
 }
 
-}
-
-if(gifPicker && gifBtn){
-
-if(!gifPicker.contains(e.target) && e.target!==gifBtn){
+if(gifPicker && !gifPicker.contains(e.target) && e.target!==gifBtn){
 gifPicker.style.display="none";
-}
-
 }
 
 });
