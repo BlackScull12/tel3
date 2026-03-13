@@ -77,6 +77,8 @@ if (googleBtn) {
 
 googleBtn.onclick = async () => {
 
+try {
+
 const res = await signInWithPopup(auth, provider);
 const user = res.user;
 
@@ -91,6 +93,10 @@ videoPhoto:""
 
 window.location = "chat.html";
 
+} catch(err){
+console.error("Login error:",err);
+}
+
 };
 
 }
@@ -104,6 +110,8 @@ if(!user) return;
 
 currentUser = user;
 
+try{
+
 const snap = await getDoc(doc(db,"users",user.uid));
 
 if(snap.exists()){
@@ -113,13 +121,18 @@ const data = snap.data();
 const avatar =
 data.videoPhoto ||
 data.photo ||
-user.photoURL;
+user.photoURL ||
+"";
 
 renderAvatar(myProfilePic,avatar);
 
 }
 
 loadUsers();
+
+}catch(err){
+console.error("Auth load error:",err);
+}
 
 });
 
@@ -130,16 +143,18 @@ if(uploadBtn && profileUpload){
 
 uploadBtn.onclick = ()=> profileUpload.click();
 
-profileUpload.onchange = ()=>{
+profileUpload.onchange = async ()=>{
 
 const file = profileUpload.files[0];
-if(!file) return;
+if(!file || !currentUser) return;
 
 const reader = new FileReader();
 
 reader.onload = async (e)=>{
 
 const base64 = e.target.result;
+
+try{
 
 const ref = doc(db,"users",currentUser.uid);
 
@@ -160,8 +175,11 @@ videoPhoto:""
 }
 
 renderAvatar(myProfilePic,base64);
-
 loadUsers();
+
+}catch(err){
+console.error("Upload error:",err);
+}
 
 };
 
@@ -180,7 +198,7 @@ if(!container) return;
 
 if(src && src.startsWith("data:video")){
 
-container.outerHTML = `
+container.innerHTML = `
 <video class="profilePic" autoplay loop muted>
 <source src="${src}" type="video/mp4">
 </video>
@@ -188,7 +206,7 @@ container.outerHTML = `
 
 }else{
 
-container.outerHTML = `
+container.innerHTML = `
 <img class="profilePic" src="${src}">
 `;
 
@@ -201,9 +219,11 @@ container.outerHTML = `
 
 async function loadUsers(){
 
-if(!usersList) return;
+if(!usersList || !currentUser) return;
 
 usersList.innerHTML = "";
+
+try{
 
 const snap = await getDocs(collection(db,"users"));
 
@@ -216,7 +236,8 @@ const user = docu.data();
 const avatar =
 user.videoPhoto ||
 user.photo ||
-user.photoURL;
+user.photoURL ||
+"";
 
 let avatarHTML;
 
@@ -239,7 +260,7 @@ div.className = "userRow";
 
 div.innerHTML = `
 ${avatarHTML}
-<b>${user.name}</b>
+<b>${user.name || "User"}</b>
 `;
 
 div.onclick = ()=> openChat(docu.id,user.name);
@@ -248,6 +269,10 @@ usersList.appendChild(div);
 
 });
 
+}catch(err){
+console.error("Load users error:",err);
+}
+
 }
 
 
@@ -255,10 +280,12 @@ usersList.appendChild(div);
 
 function openChat(uid,name){
 
+if(!currentUser) return;
+
 currentFriend = uid;
 chatID = [currentUser.uid,uid].sort().join("_");
 
-chatUser.innerText = name;
+if(chatUser) chatUser.innerText = name;
 
 if(unsubscribeMessages) unsubscribeMessages();
 
@@ -270,6 +297,8 @@ listenMessages();
 /* ---------------- LISTEN MESSAGES ---------------- */
 
 function listenMessages(){
+
+if(!chatBox || !chatID) return;
 
 const q = query(
 collection(db,"chats",chatID,"messages"),
@@ -285,19 +314,21 @@ snap.forEach(d=>{
 const m = d.data();
 const id = d.id;
 
+const avatar = m.photo || "";
+
 let avatarHTML;
 
-if(m.photo && m.photo.startsWith("data:video")){
+if(avatar && avatar.startsWith("data:video")){
 
 avatarHTML = `
 <video class="msgAvatar" autoplay loop muted>
-<source src="${m.photo}" type="video/mp4">
+<source src="${avatar}" type="video/mp4">
 </video>
 `;
 
 }else{
 
-avatarHTML = `<img class="msgAvatar" src="${m.photo}">`;
+avatarHTML = `<img class="msgAvatar" src="${avatar}">`;
 
 }
 
@@ -312,7 +343,7 @@ ${avatarHTML}
 
 <div class="msgBubble">
 
-${m.text}
+${m.text || ""}
 
 <div class="reactionBar">
 
@@ -325,19 +356,14 @@ ${m.text}
 </div>
 
 <div class="reactions">
-
 ${renderReactions(m.reactions)}
-
 </div>
 
 <div class="messageTime">
-
-${new Date(m.time).toLocaleTimeString()}
-
+${new Date(m.time || Date.now()).toLocaleTimeString()}
 </div>
 
 </div>
-
 `;
 
 chatBox.appendChild(div);
@@ -351,7 +377,7 @@ chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 
-/* ---------------- REACTION SYSTEM ---------------- */
+/* ---------------- REACTIONS ---------------- */
 
 function renderReactions(reactions){
 
@@ -366,7 +392,7 @@ counts[e]=(counts[e]||0)+1;
 let html="";
 
 for(let e in counts){
-html+=`${e} ${counts[e]} `;
+html += `${e} ${counts[e]} `;
 }
 
 return html;
@@ -375,11 +401,19 @@ return html;
 
 window.react = async (id,emoji)=>{
 
+if(!chatID || !currentUser) return;
+
+try{
+
 const ref = doc(db,"chats",chatID,"messages",id);
 
 await updateDoc(ref,{
 ["reactions."+currentUser.uid]:emoji
 });
+
+}catch(err){
+console.error("Reaction error:",err);
+}
 
 };
 
@@ -388,10 +422,12 @@ await updateDoc(ref,{
 
 async function sendMessage(){
 
-if(!chatID) return;
+if(!chatID || !input) return;
 
 const text = input.value.trim();
 if(!text) return;
+
+try{
 
 const snap = await getDoc(doc(db,"users",currentUser.uid));
 const data = snap.data();
@@ -399,7 +435,8 @@ const data = snap.data();
 const avatar =
 data.videoPhoto ||
 data.photo ||
-currentUser.photoURL;
+currentUser.photoURL ||
+"";
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
@@ -412,6 +449,10 @@ time:Date.now()
 });
 
 input.value="";
+
+}catch(err){
+console.error("Send message error:",err);
+}
 
 }
 
@@ -433,7 +474,7 @@ sendMessage();
 
 /* ---------------- EMOJI PICKER ---------------- */
 
-if(emojiBtn){
+if(emojiBtn && emojiPicker){
 
 emojiBtn.onclick = ()=>{
 
@@ -444,7 +485,7 @@ emojiPicker.style.display==="block"?"none":"block";
 
 }
 
-if(window.EmojiMart){
+if(window.EmojiMart && emojiPicker && input){
 
 const picker = new EmojiMart.Picker({
 
