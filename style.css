@@ -1,3 +1,4 @@
+```css
 /* GLOBAL */
 
 *{
@@ -11,6 +12,7 @@ body{
 height:100vh;
 display:flex;
 background:#f0f2f5;
+overflow:hidden;
 }
 
 
@@ -22,6 +24,7 @@ background:white;
 border-right:1px solid #ddd;
 overflow-y:auto;
 }
+
 
 /* USER ROW */
 
@@ -46,7 +49,9 @@ background:#f7f7f7;
 flex:1;
 display:flex;
 flex-direction:column;
-height:100vh;
+height:100%;
+position:relative;
+min-height:0;
 }
 
 
@@ -71,6 +76,7 @@ display:flex;
 flex-direction:column;
 gap:10px;
 background:#e5ddd5;
+min-height:0;
 }
 
 
@@ -82,7 +88,7 @@ background:#0084ff;
 color:white;
 padding:10px 14px;
 border-radius:15px;
-max-width:60%;
+max-width:65%;
 word-wrap:break-word;
 }
 
@@ -91,8 +97,18 @@ align-self:flex-start;
 background:white;
 padding:10px 14px;
 border-radius:15px;
-max-width:60%;
+max-width:65%;
 word-wrap:break-word;
+}
+
+
+/* MESSAGE MEDIA */
+
+.sender img,
+.receiver img{
+max-width:220px;
+border-radius:10px;
+display:block;
 }
 
 
@@ -115,6 +131,7 @@ gap:6px;
 padding:10px;
 background:white;
 border-top:1px solid #ddd;
+position:relative;
 }
 
 
@@ -153,8 +170,8 @@ background:#006fd6;
 #emojiPicker,
 #gifPicker{
 position:absolute;
-bottom:70px;
-right:20px;
+bottom:60px;
+right:10px;
 background:white;
 border:1px solid #ccc;
 border-radius:10px;
@@ -162,7 +179,7 @@ padding:10px;
 max-height:300px;
 overflow-y:auto;
 box-shadow:0 4px 10px rgba(0,0,0,0.15);
-z-index:1000;
+z-index:9999;
 }
 
 
@@ -222,4 +239,10 @@ border-bottom:1px solid #ddd;
 height:65vh;
 }
 
+.sender,
+.receiver{
+max-width:80%;
 }
+
+}
+```
