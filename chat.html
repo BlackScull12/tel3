@@ -1,18 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Chat App</title>
+<title>Chat</title>
 
 <link rel="stylesheet" href="style.css">
+
+<!-- EMOJI MART -->
+
+<script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
 
 </head>
 
 <body>
+
 
 <!-- USERS LIST -->
 
@@ -29,15 +34,32 @@
 
 <div id="chatHeader">
 
-<span id="chatUser">Select a user to chat</span>
+<div>
 
-<button id="nicknameBtn">✏ Nickname</button>
+<span id="chatUser">Select a user</span>
+
+<button id="nicknameBtn">✏️</button>
+
+</div>
+
+
+<!-- PROFILE SECTION -->
+
+<div class="profileSection">
+
+<img id="myProfilePic" class="profilePic">
+
+<input type="file" id="profileUpload" accept="image/*">
+
+<button id="uploadBtn">Upload</button>
+
+</div>
 
 </div>
 
 
 
-<!-- CHAT MESSAGES -->
+<!-- CHAT BOX -->
 
 <div id="chatBox"></div>
 
@@ -47,9 +69,10 @@
 
 <div id="chatInput">
 
-<button id="emojiBtn" title="Emoji">😀</button>
 
-<button id="gifBtn" title="GIF">GIF</button>
+<button id="emojiBtn">😊</button>
+
+<button id="gifBtn">GIF</button>
 
 <input
 id="messageInput"
@@ -60,32 +83,25 @@ autocomplete="off"
 
 <button id="sendBtn">Send</button>
 
-</div>
-
-
 
 <!-- EMOJI PICKER -->
 
-<div id="emojiPicker" style="display:none"></div>
-
+<div id="emojiPicker"></div>
 
 
 <!-- GIF PICKER -->
 
-<div id="gifPicker" style="display:none"></div>
+<div id="gifPicker"></div>
+
+
+</div>
 
 
 </div>
 
 
 
-<!-- EMOJI LIBRARY -->
-
-<script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
-
-
-
-<!-- MAIN APP SCRIPT -->
+<!-- FIREBASE + APP SCRIPT -->
 
 <script type="module" src="app.js"></script>
 
