@@ -54,11 +54,10 @@ const provider=new GoogleAuthProvider();
 const googleBtn=document.getElementById("googleLogin");
 
 const usersList=document.getElementById("usersList");
-const chatBox=document.getElementById("chatBox");
 
+const chatBox=document.getElementById("chatBox");
 const input=document.getElementById("messageInput");
 const sendBtn=document.getElementById("sendBtn");
-
 const chatUser=document.getElementById("chatUser");
 
 const emojiBtn=document.getElementById("emojiBtn");
@@ -73,11 +72,6 @@ const profileUpload=document.getElementById("profileUpload");
 const uploadBtn=document.getElementById("uploadBtn");
 const myProfilePic=document.getElementById("myProfilePic");
 
-const pinnedBar=document.getElementById("pinnedBar");
-const pinnedText=document.getElementById("pinnedText");
-
-const themeToggle=document.getElementById("themeToggle");
-
 
 /* STATE */
 
@@ -85,28 +79,6 @@ let currentUser=null;
 let currentFriend=null;
 let chatID=null;
 let unsubscribeMessages=null;
-
-
-/* DARK MODE */
-
-if(themeToggle){
-
-themeToggle.onclick=()=>{
-
-document.body.classList.toggle("dark");
-
-localStorage.setItem(
-"theme",
-document.body.classList.contains("dark")?"dark":"light"
-);
-
-};
-
-}
-
-if(localStorage.getItem("theme")==="dark"){
-document.body.classList.add("dark");
-}
 
 
 /* LOGIN */
@@ -144,6 +116,8 @@ if(!user) return;
 
 currentUser=user;
 
+/* load profile */
+
 const snap=await getDoc(doc(db,"users",user.uid));
 
 if(snap.exists()){
@@ -160,7 +134,6 @@ await setDoc(doc(db,"users",user.uid),{
 online:true
 },{merge:true});
 
-
 window.addEventListener("beforeunload",async()=>{
 
 await setDoc(doc(db,"users",user.uid),{
@@ -175,32 +148,24 @@ loadUsers();
 });
 
 
-/* PROFILE UPLOAD FIX */
+/* PROFILE UPLOAD */
 
 if(uploadBtn && profileUpload){
 
-/* open file picker */
+uploadBtn.onclick=()=>profileUpload.click();
 
-uploadBtn.onclick = () => {
-profileUpload.click();
-};
+profileUpload.onchange=()=>{
 
-/* when file selected */
-
-profileUpload.onchange = () => {
-
-const file = profileUpload.files[0];
+const file=profileUpload.files[0];
 if(!file) return;
 
-const reader = new FileReader();
+const reader=new FileReader();
 
-reader.onload = async (e) => {
+reader.onload=async(e)=>{
 
-const base64 = e.target.result;
+const base64=e.target.result;
 
-/* save to firestore */
-
-if(file.type === "image/gif"){
+if(file.type==="image/gif"){
 
 await updateDoc(doc(db,"users",currentUser.uid),{
 animatedPhoto:base64,
@@ -216,13 +181,7 @@ animatedPhoto:""
 
 }
 
-/* update current profile pic */
-
-if(myProfilePic){
-myProfilePic.src = base64;
-}
-
-/* refresh users list so new avatar appears */
+if(myProfilePic) myProfilePic.src=base64;
 
 loadUsers();
 
@@ -233,6 +192,8 @@ reader.readAsDataURL(file);
 };
 
 }
+
+
 /* LOAD USERS */
 
 async function loadUsers(){
@@ -249,19 +210,25 @@ if(docu.id===currentUser.uid) return;
 
 const user=docu.data();
 
-const avatar=user.animatedPhoto || user.photo || "https://i.imgur.com/HeIi0wU.png";
+const avatar=user.animatedPhoto || user.photo || user.photoURL || "";
 
 const div=document.createElement("div");
 div.className="userRow";
 
 div.innerHTML=`
+
 <img src="${avatar}">
+
 <div class="userInfo">
+
 <b>${user.name}</b>
+
 <span style="font-size:12px;color:gray">
 ${user.online?"🟢 Online":"Last seen "+new Date(user.lastSeen||Date.now()).toLocaleTimeString()}
 </span>
+
 </div>
+
 `;
 
 div.onclick=()=>openChat(docu.id,user.name);
@@ -275,56 +242,66 @@ usersList.appendChild(div);
 
 /* OPEN CHAT */
 
-function openChat(uid,name){
+async function openChat(uid,name){
 
 currentFriend=uid;
 chatID=[currentUser.uid,uid].sort().join("_");
 
-chatUser.innerText=name;
+loadNickname(name);
 
 if(unsubscribeMessages) unsubscribeMessages();
 
 listenMessages();
-listenPinned();
 
 }
 
 
-/* PINNED MESSAGES */
+/* NICKNAME */
 
-function listenPinned(){
+async function loadNickname(defaultName){
 
-if(!pinnedBar) return;
+if(!chatUser) return;
 
-onSnapshot(doc(db,"chats",chatID),(snap)=>{
+const ref=doc(db,"chats",chatID);
+const snap=await getDoc(ref);
+
+if(snap.exists()){
 
 const data=snap.data();
 
-if(!data || !data.pinned){
-
-pinnedBar.style.display="none";
+if(data.nicknames && data.nicknames[currentFriend]){
+chatUser.innerText=data.nicknames[currentFriend];
 return;
+}
 
 }
 
-pinnedBar.style.display="block";
-pinnedText.innerText=data.pinned;
-
-});
+chatUser.innerText=defaultName;
 
 }
 
 
-window.pin=async function(text){
+if(nicknameBtn){
+
+nicknameBtn.onclick=async()=>{
+
+if(!chatID) return;
+
+const name=prompt("Enter nickname:");
+if(!name) return;
 
 await setDoc(doc(db,"chats",chatID),{
-pinned:text
+nicknames:{[currentFriend]:name}
 },{merge:true});
+
+chatUser.innerText=name;
 
 };
 
+}
 
-/* MESSAGES */
+
+/* LISTEN MESSAGES */
 
 function listenMessages(){
 
@@ -335,18 +312,27 @@ collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
-unsubscribeMessages=onSnapshot(q,(snap)=>{
+unsubscribeMessages=onSnapshot(q,async(snap)=>{
 
 chatBox.innerHTML="";
 
-snap.forEach(d=>{
+for(const d of snap.docs){
 
 const m=d.data();
 
-const div=document.createElement("div");
-div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
+const userSnap=await getDoc(doc(db,"users",m.sender));
+let avatar="";
 
-const avatar = m.photo || "https://i.imgur.com/HeIi0wU.png";
+if(userSnap.exists()){
+
+const u=userSnap.data();
+avatar=u.animatedPhoto || u.photo || "";
+
+}
+
+const div=document.createElement("div");
+
+div.className="message "+(m.sender===currentUser.uid?"sender":"receiver");
 
 div.innerHTML=`
 
@@ -362,7 +348,6 @@ ${m.text}
 <span onclick="react('${d.id}','😂')">😂</span>
 <span onclick="react('${d.id}','😮')">😮</span>
 <span onclick="react('${d.id}','😢')">😢</span>
-<span onclick="pin('${m.text}')">📌</span>
 </div>
 
 <div class="reactions">
@@ -374,11 +359,12 @@ ${new Date(m.time).toLocaleTimeString()}
 </div>
 
 </div>
+
 `;
 
 chatBox.appendChild(div);
 
-});
+}
 
 chatBox.scrollTop=chatBox.scrollHeight;
 
@@ -427,25 +413,13 @@ async function sendMessage(){
 
 if(!chatID) return;
 
-const text = input.value.trim();
+const text=input.value.trim();
 if(!text) return;
-
-/* always get latest profile photo */
-
-const userSnap = await getDoc(doc(db,"users",currentUser.uid));
-const userData = userSnap.data();
-
-const avatar =
-userData.animatedPhoto ||
-userData.photo ||
-currentUser.photoURL ||
-"https://i.imgur.com/HeIi0wU.png";
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
 text:text,
 sender:currentUser.uid,
-photo:avatar,
 time:Date.now()
 
 });
@@ -453,6 +427,23 @@ time:Date.now()
 input.value="";
 
 }
+
+if(sendBtn) sendBtn.onclick=sendMessage;
+
+if(input){
+
+input.addEventListener("keydown",(e)=>{
+
+if(e.key==="Enter"){
+e.preventDefault();
+sendMessage();
+}
+
+});
+
+}
+
+
 /* EMOJI PICKER */
 
 if(emojiPicker && window.EmojiMart){
@@ -468,6 +459,7 @@ emojiPicker.style.display="none";
 
 }
 
+
 if(emojiBtn){
 
 emojiBtn.onclick=()=>{
@@ -475,7 +467,7 @@ emojiBtn.onclick=()=>{
 emojiPicker.style.display=
 emojiPicker.style.display==="block"?"none":"block";
 
-gifPicker.style.display="none";
+if(gifPicker) gifPicker.style.display="none";
 
 };
 
@@ -487,8 +479,11 @@ gifPicker.style.display="none";
 if(gifPicker){
 
 gifPicker.innerHTML=`
+
 <input id="gifSearch" placeholder="Search GIFs..." style="width:100%;padding:8px;border:none;border-bottom:1px solid #ccc">
+
 <div id="gifResults" style="display:flex;flex-wrap:wrap;gap:5px;padding:5px"></div>
+
 `;
 
 gifPicker.style.display="none";
@@ -498,23 +493,24 @@ const gifResults=document.getElementById("gifResults");
 
 gifSearch.addEventListener("input",async()=>{
 
-const q=gifSearch.value.trim();
-if(!q) return;
+const queryText=gifSearch.value.trim();
+if(!queryText) return;
 
-try{
+const res=await fetch(`https://api.klipy.com/gifs/search?q=${queryText}&apikey=${KLIPY_API_KEY}&limit=20`);
 
-const res=await fetch(`https://api.klipy.com/gifs/search?q=${q}&apikey=${KLIPY_API_KEY}&limit=20`);
 const data=await res.json();
 
 gifResults.innerHTML="";
 
-data.data.forEach(g=>{
+data.data.forEach(gif=>{
 
-const url=g.images.original.url;
+const url=gif.images.original.url;
 
 const img=document.createElement("img");
+
 img.src=url;
 img.style.width="100px";
+img.style.cursor="pointer";
 
 img.onclick=async()=>{
 
@@ -522,7 +518,6 @@ await addDoc(collection(db,"chats",chatID,"messages"),{
 
 text:`<img src="${url}" style="max-width:200px;border-radius:10px">`,
 sender:currentUser.uid,
-photo:myProfilePic ? myProfilePic.src : "",
 time:Date.now()
 
 });
@@ -535,15 +530,10 @@ gifResults.appendChild(img);
 
 });
 
-}catch(e){
-
-console.error("GIF search error",e);
-
-}
-
 });
 
 }
+
 
 if(gifBtn){
 
@@ -552,7 +542,7 @@ gifBtn.onclick=()=>{
 gifPicker.style.display=
 gifPicker.style.display==="block"?"none":"block";
 
-emojiPicker.style.display="none";
+if(emojiPicker) emojiPicker.style.display="none";
 
 };
 
@@ -563,12 +553,20 @@ emojiPicker.style.display="none";
 
 document.addEventListener("click",(e)=>{
 
-if(emojiPicker && !emojiPicker.contains(e.target) && e.target!==emojiBtn){
+if(emojiPicker && emojiBtn){
+
+if(!emojiPicker.contains(e.target) && e.target!==emojiBtn){
 emojiPicker.style.display="none";
 }
 
-if(gifPicker && !gifPicker.contains(e.target) && e.target!==gifBtn){
+}
+
+if(gifPicker && gifBtn){
+
+if(!gifPicker.contains(e.target) && e.target!==gifBtn){
 gifPicker.style.display="none";
+}
+
 }
 
 });
