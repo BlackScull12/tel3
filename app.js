@@ -55,6 +55,9 @@ const chatUser = document.getElementById("chatUser");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
+const emojiBtn = document.getElementById("emojiBtn");
+const emojiPicker = document.getElementById("emojiPicker");
+
 const profileUpload = document.getElementById("profileUpload");
 const uploadBtn = document.getElementById("uploadBtn");
 const myProfilePic = document.getElementById("myProfilePic");
@@ -82,7 +85,7 @@ await setDoc(doc(db,"users",user.uid),{
 name:user.displayName,
 email:user.email,
 photo:user.photoURL || "",
-animatedPhoto:""
+videoPhoto:""
 
 },{merge:true});
 
@@ -93,7 +96,7 @@ window.location = "chat.html";
 }
 
 
-/* ---------------- AUTH STATE ---------------- */
+/* ---------------- AUTH ---------------- */
 
 onAuthStateChanged(auth, async (user)=>{
 
@@ -108,14 +111,11 @@ if(snap.exists()){
 const data = snap.data();
 
 const avatar =
-data.animatedPhoto ||
+data.videoPhoto ||
 data.photo ||
-user.photoURL ||
-"https://i.imgur.com/HeIi0wU.png";
+user.photoURL;
 
-if(myProfilePic){
-myProfilePic.src = avatar;
-}
+renderAvatar(myProfilePic,avatar);
 
 }
 
@@ -124,7 +124,7 @@ loadUsers();
 });
 
 
-/* ---------------- PROFILE UPLOAD (GIF FIXED) ---------------- */
+/* ---------------- PROFILE UPLOAD ---------------- */
 
 if(uploadBtn && profileUpload){
 
@@ -137,37 +137,29 @@ if(!file) return;
 
 const reader = new FileReader();
 
-/* IMPORTANT: read full base64 so GIF animation remains */
-
 reader.onload = async (e)=>{
 
 const base64 = e.target.result;
 
-const userRef = doc(db,"users",currentUser.uid);
+const ref = doc(db,"users",currentUser.uid);
 
-if(file.type === "image/gif"){
+if(file.type === "video/mp4"){
 
-await updateDoc(userRef,{
-animatedPhoto: base64,
+await updateDoc(ref,{
+videoPhoto:base64,
 photo:""
 });
 
 }else{
 
-await updateDoc(userRef,{
-photo: base64,
-animatedPhoto:""
+await updateDoc(ref,{
+photo:base64,
+videoPhoto:""
 });
 
 }
 
-/* update UI instantly */
-
-if(myProfilePic){
-myProfilePic.src = base64;
-}
-
-/* reload users */
+renderAvatar(myProfilePic,base64);
 
 loadUsers();
 
@@ -176,6 +168,31 @@ loadUsers();
 reader.readAsDataURL(file);
 
 };
+
+}
+
+
+/* ---------------- AVATAR RENDER ---------------- */
+
+function renderAvatar(container,src){
+
+if(!container) return;
+
+if(src && src.startsWith("data:video")){
+
+container.outerHTML = `
+<video class="profilePic" autoplay loop muted>
+<source src="${src}" type="video/mp4">
+</video>
+`;
+
+}else{
+
+container.outerHTML = `
+<img class="profilePic" src="${src}">
+`;
+
+}
 
 }
 
@@ -197,24 +214,32 @@ if(docu.id === currentUser.uid) return;
 const user = docu.data();
 
 const avatar =
-user.animatedPhoto ||
+user.videoPhoto ||
 user.photo ||
-user.photoURL ||
-"https://i.imgur.com/HeIi0wU.png";
+user.photoURL;
+
+let avatarHTML;
+
+if(avatar && avatar.startsWith("data:video")){
+
+avatarHTML = `
+<video class="userAvatar" autoplay loop muted>
+<source src="${avatar}" type="video/mp4">
+</video>
+`;
+
+}else{
+
+avatarHTML = `<img class="userAvatar" src="${avatar}">`;
+
+}
 
 const div = document.createElement("div");
 div.className = "userRow";
 
 div.innerHTML = `
-
-<img src="${avatar}" class="userAvatar">
-
-<div>
-
+${avatarHTML}
 <b>${user.name}</b>
-
-</div>
-
 `;
 
 div.onclick = ()=> openChat(docu.id,user.name);
@@ -231,14 +256,11 @@ usersList.appendChild(div);
 function openChat(uid,name){
 
 currentFriend = uid;
-
 chatID = [currentUser.uid,uid].sort().join("_");
 
 chatUser.innerText = name;
 
-if(unsubscribeMessages){
-unsubscribeMessages();
-}
+if(unsubscribeMessages) unsubscribeMessages();
 
 listenMessages();
 
@@ -261,21 +283,52 @@ chatBox.innerHTML = "";
 snap.forEach(d=>{
 
 const m = d.data();
+const id = d.id;
 
-const avatar = m.photo || "";
+let avatarHTML;
+
+if(m.photo && m.photo.startsWith("data:video")){
+
+avatarHTML = `
+<video class="msgAvatar" autoplay loop muted>
+<source src="${m.photo}" type="video/mp4">
+</video>
+`;
+
+}else{
+
+avatarHTML = `<img class="msgAvatar" src="${m.photo}">`;
+
+}
 
 const div = document.createElement("div");
 
-div.className = "message " +
-(m.sender === currentUser.uid ? "sender":"receiver");
+div.className =
+"message " + (m.sender===currentUser.uid?"sender":"receiver");
 
 div.innerHTML = `
 
-<img class="msgAvatar" src="${avatar}">
+${avatarHTML}
 
 <div class="msgBubble">
 
 ${m.text}
+
+<div class="reactionBar">
+
+<span onclick="react('${id}','👍')">👍</span>
+<span onclick="react('${id}','❤️')">❤️</span>
+<span onclick="react('${id}','😂')">😂</span>
+<span onclick="react('${id}','😮')">😮</span>
+<span onclick="react('${id}','😢')">😢</span>
+
+</div>
+
+<div class="reactions">
+
+${renderReactions(m.reactions)}
+
+</div>
 
 <div class="messageTime">
 
@@ -298,6 +351,39 @@ chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 
+/* ---------------- REACTION SYSTEM ---------------- */
+
+function renderReactions(reactions){
+
+if(!reactions) return "";
+
+let counts = {};
+
+Object.values(reactions).forEach(e=>{
+counts[e]=(counts[e]||0)+1;
+});
+
+let html="";
+
+for(let e in counts){
+html+=`${e} ${counts[e]} `;
+}
+
+return html;
+
+}
+
+window.react = async (id,emoji)=>{
+
+const ref = doc(db,"chats",chatID,"messages",id);
+
+await updateDoc(ref,{
+["reactions."+currentUser.uid]:emoji
+});
+
+};
+
+
 /* ---------------- SEND MESSAGE ---------------- */
 
 async function sendMessage(){
@@ -307,43 +393,68 @@ if(!chatID) return;
 const text = input.value.trim();
 if(!text) return;
 
-const userSnap = await getDoc(doc(db,"users",currentUser.uid));
-const userData = userSnap.data();
+const snap = await getDoc(doc(db,"users",currentUser.uid));
+const data = snap.data();
 
 const avatar =
-userData.animatedPhoto ||
-userData.photo ||
-currentUser.photoURL ||
-"https://i.imgur.com/HeIi0wU.png";
+data.videoPhoto ||
+data.photo ||
+currentUser.photoURL;
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
 text:text,
 sender:currentUser.uid,
 photo:avatar,
+reactions:{},
 time:Date.now()
 
 });
 
-input.value = "";
+input.value="";
 
 }
 
-
-if(sendBtn){
-sendBtn.onclick = sendMessage;
-}
-
+if(sendBtn) sendBtn.onclick = sendMessage;
 
 if(input){
 
 input.addEventListener("keydown",(e)=>{
 
-if(e.key === "Enter"){
+if(e.key==="Enter"){
 e.preventDefault();
 sendMessage();
 }
 
 });
+
+}
+
+
+/* ---------------- EMOJI PICKER ---------------- */
+
+if(emojiBtn){
+
+emojiBtn.onclick = ()=>{
+
+emojiPicker.style.display =
+emojiPicker.style.display==="block"?"none":"block";
+
+};
+
+}
+
+if(window.EmojiMart){
+
+const picker = new EmojiMart.Picker({
+
+onEmojiSelect:(emoji)=>{
+input.value += emoji.native;
+}
+
+});
+
+emojiPicker.appendChild(picker);
+emojiPicker.style.display="none";
 
 }
