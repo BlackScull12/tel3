@@ -27,12 +27,12 @@ orderBy
 
 const firebaseConfig = {
 
-apiKey: "YOUR_API_KEY",
-authDomain: "YOUR_PROJECT.firebaseapp.com",
-projectId: "YOUR_PROJECT",
-storageBucket: "YOUR_PROJECT.appspot.com",
-messagingSenderId: "XXXX",
-appId: "XXXX"
+apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
+authDomain: "chatgithub-e838d.firebaseapp.com",
+projectId: "chatgithub-e838d",
+storageBucket: "chatgithub-e838d.firebasestorage.app",
+messagingSenderId: "755589384017",
+appId: "1:755589384017:web:6af4c6d223d646cf36f570"
 
 };
 
