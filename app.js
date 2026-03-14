@@ -291,15 +291,33 @@ if(!usersList) return;
 
 if(unsubscribeUsers) unsubscribeUsers();
 
-unsubscribeUsers=onSnapshot(collection(db,"users"),(snap)=>{
+unsubscribeUsers=onSnapshot(collection(db,"users"),async(snap)=>{
 
 usersList.innerHTML="";
 
-snap.forEach(docu=>{
+for(const docu of snap.docs){
 
-if(docu.id===currentUser.uid) return;
+if(docu.id===currentUser.uid) continue;
 
 const user=docu.data();
+
+/* nickname lookup */
+
+let displayName=user.name;
+
+try{
+
+const nickRef=doc(db,"nicknames",currentUser.uid,"names",docu.id);
+const nickSnap=await getDoc(nickRef);
+
+if(nickSnap.exists()){
+displayName=nickSnap.data().nickname;
+}
+
+}catch(e){}
+
+
+/* row */
 
 const row=document.createElement("div");
 row.className="userRow";
@@ -334,22 +352,6 @@ status.style.background=user.online ? "limegreen" : "gray";
 /* name */
 
 const name=document.createElement("span");
-  
-/* nickname support */
-
-let displayName=user.name;
-
-try{
-
-const nickRef = doc(db,"nicknames",currentUser.uid,"names",docu.id);
-const nickSnap = await getDoc(nickRef);
-
-if(nickSnap.exists()){
-displayName = nickSnap.data().nickname;
-}
-
-}catch(e){}
-
 name.textContent=displayName;
 
 
@@ -376,38 +378,33 @@ textWrap.appendChild(name);
 textWrap.appendChild(last);
 
 
+/* nickname edit */
+
+row.ondblclick=async()=>{
+
+const nick=prompt("Enter nickname");
+
+if(!nick) return;
+
+await setDoc(
+doc(db,"nicknames",currentUser.uid,"names",docu.id),
+{nickname:nick}
+);
+
+loadUsers();
+
+};
+
+
 row.appendChild(avatar);
 row.appendChild(status);
 row.appendChild(textWrap);
 
 row.onclick=()=>openChat(docu.id,displayName);
-  
-/* nickname edit */
-
-row.ondblclick = async ()=>{
-
-const nick = prompt("Enter nickname");
-
-if(!nick) return;
-
-try{
-
-await setDoc(
-doc(db,"nicknames",currentUser.uid,"names",docu.id),
-{ nickname:nick }
-);
-
-loadUsers();
-
-}catch(e){
-console.error(e);
-}
-
-};
 
 usersList.appendChild(row);
 
-});
+}
 
 });
 
