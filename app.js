@@ -72,6 +72,8 @@ const myProfilePic = document.getElementById("myProfilePic");
 let currentUser = null;
 let currentFriend = null;
 let chatID = null;
+
+let unsubscribeUsers = null;
 let unsubscribeMessages = null;
 
 
@@ -87,18 +89,19 @@ const res = await signInWithPopup(auth, provider);
 const user = res.user;
 
 await setDoc(doc(db,"users",user.uid),{
-
-name:user.displayName,
-email:user.email,
+name:user.displayName || "User",
+email:user.email || "",
 photo:user.photoURL || DEFAULT_PFP,
 videoPhoto:""
-
 },{merge:true});
 
 window.location = "chat.html";
 
 }catch(err){
-console.error(err);
+
+console.error("Login error:",err);
+alert("Login failed");
+
 }
 
 };
@@ -116,12 +119,30 @@ currentUser = user;
 
 try{
 
-const snap = await getDoc(doc(db,"users",user.uid));
-const data = snap.exists() ? snap.data() : {};
+const ref = doc(db,"users",user.uid);
+
+const snap = await getDoc(ref);
+
+let data={};
+
+if(!snap.exists()){
+
+data={
+name:user.displayName || "User",
+email:user.email || "",
+photo:user.photoURL || DEFAULT_PFP,
+videoPhoto:""
+};
+
+await setDoc(ref,data);
+
+}else{
+data=snap.data();
+}
 
 renderAvatar(
 myProfilePic,
-data.photo || user.photoURL || DEFAULT_PFP,
+data.photo || DEFAULT_PFP,
 data.videoPhoto || ""
 );
 
@@ -143,7 +164,14 @@ uploadBtn.onclick = ()=> profileUpload.click();
 profileUpload.onchange = ()=>{
 
 const file = profileUpload.files[0];
-if(!file || !currentUser) return;
+if(!file) return;
+
+/* file size limit (2MB) */
+
+if(file.size > 2*1024*1024){
+alert("File too large (max 2MB)");
+return;
+}
 
 const reader = new FileReader();
 
@@ -155,9 +183,9 @@ try{
 
 const ref = doc(db,"users",currentUser.uid);
 
-if(file.type === "video/mp4"){
+if(file.type==="video/mp4"){
 
-await updateDoc(ref,{ videoPhoto:base64 });
+await updateDoc(ref,{videoPhoto:base64});
 
 renderAvatar(myProfilePic,"",base64);
 
@@ -173,12 +201,11 @@ renderAvatar(myProfilePic,base64,"");
 }else{
 
 alert("Only image or MP4 allowed");
-return;
 
 }
 
 }catch(err){
-console.error(err);
+console.error("Upload error:",err);
 }
 
 };
@@ -196,79 +223,84 @@ function renderAvatar(container,image,video){
 
 if(!container) return;
 
-if(video && video.length > 20){
+container.innerHTML="";
 
-container.innerHTML = `
-<video class="profilePic" autoplay loop muted playsinline>
-<source src="${video}" type="video/mp4">
-</video>
-`;
+if(video && video.length>20){
+
+const vid=document.createElement("video");
+
+vid.src=video;
+vid.autoplay=true;
+vid.loop=true;
+vid.muted=true;
+vid.playsInline=true;
+
+vid.style.width="100%";
+vid.style.height="100%";
+vid.style.objectFit="cover";
+
+container.appendChild(vid);
 
 }else{
 
-container.innerHTML = `
-<img class="profilePic"
-src="${image || DEFAULT_PFP}"
-onerror="this.src='${DEFAULT_PFP}'">
-`;
+const img=document.createElement("img");
+
+img.src=image || DEFAULT_PFP;
+
+img.onerror=()=>{
+img.src=DEFAULT_PFP;
+};
+
+img.style.width="100%";
+img.style.height="100%";
+img.style.objectFit="cover";
+
+container.appendChild(img);
 
 }
 
 }
 
 
-/* ---------------- LOAD USERS (REALTIME FIX) ---------------- */
+/* ---------------- LOAD USERS ---------------- */
 
 function loadUsers(){
 
-if(!usersList || !currentUser) return;
+if(!usersList) return;
 
-const usersRef = collection(db,"users");
+if(unsubscribeUsers) unsubscribeUsers();
 
-onSnapshot(usersRef,(snap)=>{
+unsubscribeUsers = onSnapshot(collection(db,"users"),(snap)=>{
 
-usersList.innerHTML = "";
+usersList.innerHTML="";
 
 snap.forEach(docu=>{
 
-if(docu.id === currentUser.uid) return;
+if(docu.id===currentUser.uid) return;
 
-const user = docu.data() || {};
+const user=docu.data() || {};
 
-const avatar = user.photo || DEFAULT_PFP;
-const videoAvatar = user.videoPhoto || "";
+const row=document.createElement("div");
+row.className="userRow";
 
-let avatarHTML;
+const avatar=document.createElement("div");
+avatar.className="userAvatarBox";
 
-if(videoAvatar && videoAvatar.length > 20){
+renderAvatar(
+avatar,
+user.photo || DEFAULT_PFP,
+user.videoPhoto || ""
+);
 
-avatarHTML = `
-<video class="userAvatar" autoplay loop muted playsinline>
-<source src="${videoAvatar}" type="video/mp4">
-</video>
-`;
+const name=document.createElement("span");
+name.textContent=user.name || "User";
 
-}else{
+row.appendChild(avatar);
+row.appendChild(name);
 
-avatarHTML = `
-<img class="userAvatar"
-src="${avatar}"
-onerror="this.src='${DEFAULT_PFP}'">
-`;
+row.onclick=()=>openChat(docu.id,user.name);
 
-}
-
-const div = document.createElement("div");
-div.className = "userRow";
-
-div.innerHTML = `
-${avatarHTML}
-<b>${user.name || "User"}</b>
-`;
-
-div.onclick = ()=> openChat(docu.id,user.name || "User");
-
-usersList.appendChild(div);
+usersList.appendChild(row);
 
 });
 
@@ -281,10 +313,11 @@ usersList.appendChild(div);
 
 function openChat(uid,name){
 
-currentFriend = uid;
-chatID = [currentUser.uid,uid].sort().join("_");
+currentFriend=uid;
 
-if(chatUser) chatUser.innerText = name;
+chatID=[currentUser.uid,uid].sort().join("_");
+
+if(chatUser) chatUser.textContent=name;
 
 if(unsubscribeMessages) unsubscribeMessages();
 
@@ -297,136 +330,82 @@ listenMessages();
 
 function listenMessages(){
 
-if(!chatBox || !chatID) return;
+if(!chatBox) return;
 
-const q = query(
+const q=query(
 collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
-unsubscribeMessages = onSnapshot(q,(snap)=>{
+unsubscribeMessages=onSnapshot(q,(snap)=>{
 
-chatBox.innerHTML = "";
+chatBox.innerHTML="";
 
 snap.forEach(d=>{
 
-const m = d.data() || {};
-const id = d.id;
+const m=d.data();
 
-let avatarHTML;
+const msg=document.createElement("div");
 
-if(m.videoPhoto && m.videoPhoto.length > 20){
+msg.className=
+"message "+(m.sender===currentUser.uid?"sender":"receiver");
 
-avatarHTML = `
-<video class="msgAvatar" autoplay loop muted playsinline>
-<source src="${m.videoPhoto}" type="video/mp4">
-</video>
-`;
 
-}else{
+const avatar=document.createElement("div");
+avatar.className="msgAvatarBox";
 
-avatarHTML = `
-<img class="msgAvatar"
-src="${m.photo || DEFAULT_PFP}"
-onerror="this.src='${DEFAULT_PFP}'">
-`;
+renderAvatar(
+avatar,
+m.photo || DEFAULT_PFP,
+m.videoPhoto || ""
+);
 
-}
+const bubble=document.createElement("div");
+bubble.className="msgBubble";
 
-const div = document.createElement("div");
+const text=document.createElement("div");
+text.className="msgText";
+text.textContent=m.text || "";
 
-div.className =
-"message " + (m.sender===currentUser.uid?"sender":"receiver");
+const time=document.createElement("div");
+time.className="messageTime";
 
-div.innerHTML = `
-${avatarHTML}
+const date=m.time ? new Date(m.time) : new Date();
 
-<div class="msgBubble">
+time.textContent=date.toLocaleTimeString();
 
-<div class="msgText"></div>
+bubble.appendChild(text);
+bubble.appendChild(time);
 
-<div class="reactionBar">
+msg.appendChild(avatar);
+msg.appendChild(bubble);
 
-<span onclick="react('${id}','👍')">👍</span>
-<span onclick="react('${id}','❤️')">❤️</span>
-<span onclick="react('${id}','😂')">😂</span>
-<span onclick="react('${id}','😮')">😮</span>
-<span onclick="react('${id}','😢')">😢</span>
-
-</div>
-
-<div class="reactions">
-${renderReactions(m.reactions)}
-</div>
-
-<div class="messageTime">
-${new Date(m.time || Date.now()).toLocaleTimeString()}
-</div>
-
-</div>
-`;
-
-div.querySelector(".msgText").textContent = m.text || "";
-
-chatBox.appendChild(div);
+chatBox.appendChild(msg);
 
 });
 
-setTimeout(()=>{
-chatBox.scrollTop = chatBox.scrollHeight;
-},50);
+chatBox.scrollTop=chatBox.scrollHeight;
 
 });
 
 }
-
-
-/* ---------------- REACTIONS ---------------- */
-
-function renderReactions(reactions){
-
-if(!reactions) return "";
-
-let counts = {};
-
-Object.values(reactions).forEach(e=>{
-counts[e]=(counts[e]||0)+1;
-});
-
-let html="";
-
-for(let e in counts){
-html += `${e} ${counts[e]} `;
-}
-
-return html;
-
-}
-
-window.react = async (id,emoji)=>{
-
-if(!chatID || !currentUser) return;
-
-const ref = doc(db,"chats",chatID,"messages",id);
-
-await updateDoc(ref,{
-[`reactions.${currentUser.uid}`]:emoji
-});
-
-};
 
 
 /* ---------------- SEND MESSAGE ---------------- */
 
 async function sendMessage(){
 
-if(!chatID || !input) return;
+if(!input || !currentUser || !chatID) return;
 
-const text = input.value.trim();
+const text=input.value.trim();
+
 if(!text) return;
 
-const snap = await getDoc(doc(db,"users",currentUser.uid));
-const data = snap.exists() ? snap.data() : {};
+try{
+
+const snap=await getDoc(doc(db,"users",currentUser.uid));
+
+const data=snap.data() || {};
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
@@ -434,16 +413,20 @@ text:text,
 sender:currentUser.uid,
 photo:data.photo || DEFAULT_PFP,
 videoPhoto:data.videoPhoto || "",
-reactions:{},
 time:Date.now()
 
 });
 
 input.value="";
 
+}catch(err){
+console.error("Send error:",err);
 }
 
-if(sendBtn) sendBtn.onclick = sendMessage;
+}
+
+
+if(sendBtn) sendBtn.onclick=sendMessage;
 
 if(input){
 
@@ -463,21 +446,26 @@ sendMessage();
 
 if(emojiBtn && emojiPicker){
 
-emojiBtn.onclick = ()=>{
+emojiBtn.onclick=()=>{
 
-emojiPicker.style.display =
-emojiPicker.style.display==="block"?"none":"block";
+emojiPicker.style.display=
+emojiPicker.style.display==="block"
+? "none"
+: "block";
 
 };
 
 }
 
-if(window.EmojiMart && emojiPicker && input){
 
-const picker = new EmojiMart.Picker({
+/* ---------------- EMOJI LIBRARY ---------------- */
+
+if(window.EmojiMart && emojiPicker){
+
+const picker=new EmojiMart.Picker({
 
 onEmojiSelect:(emoji)=>{
-input.value += emoji.native;
+if(input) input.value += emoji.native;
 }
 
 });
