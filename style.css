@@ -325,8 +325,17 @@ body.dark #chatBox{
 background:#1f1f1f;
 }
 
+/* RECEIVER BUBBLE (GREY) */
+
 body.dark .bubble{
-background:#333;
+background:#3a3a3a;
+color:white;
+}
+
+/* SENDER BUBBLE (PINK) */
+
+body.dark .sender .bubble{
+background:#ff4fa3;
 color:white;
 }
 
@@ -340,7 +349,6 @@ background:#333;
 color:white;
 border:1px solid #555;
 }
-
 /* ================= MOBILE ================= */
 
 @media (max-width:800px){
