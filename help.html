@@ -10,59 +10,131 @@
 
 <style>
 
-body{
-font-family:Arial, Helvetica, sans-serif;
+/* ---------- GLOBAL ---------- */
+
+*{
+box-sizing:border-box;
 margin:0;
-background:#f4f6f9;
+padding:0;
+font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+background:#f0f2f5;
 color:#333;
 line-height:1.6;
+padding:20px;
 }
+
+/* ---------- CONTAINER ---------- */
 
 .container{
 max-width:900px;
 margin:auto;
-padding:40px;
 background:white;
-box-shadow:0 4px 15px rgba(0,0,0,0.1);
+padding:40px;
 border-radius:10px;
-margin-top:40px;
-margin-bottom:40px;
+box-shadow:0 6px 20px rgba(0,0,0,0.1);
 }
 
+/* ---------- HEADINGS ---------- */
+
 h1{
-margin-top:0;
+margin-bottom:10px;
 }
 
 h2{
 margin-top:35px;
-color:#222;
+margin-bottom:10px;
 border-bottom:2px solid #eee;
-padding-bottom:5px;
+padding-bottom:6px;
+}
+
+/* ---------- TEXT ---------- */
+
+p{
+margin-top:10px;
 }
 
 ul{
+margin-top:10px;
 padding-left:20px;
 }
+
+/* ---------- FEATURE BOX ---------- */
 
 .feature{
 background:#f8f9fb;
 padding:15px;
-border-radius:6px;
-margin-top:10px;
+border-radius:8px;
+margin-top:15px;
 }
+
+/* ---------- TIP BOX ---------- */
+
+.tip{
+background:#fff6d8;
+padding:12px;
+border-left:4px solid #ffc107;
+margin-top:15px;
+border-radius:6px;
+}
+
+/* ---------- BUTTON ---------- */
 
 .backBtn{
 display:inline-block;
 margin-top:30px;
-padding:10px 18px;
-background:#4285F4;
+padding:12px 20px;
+background:#4a8cff;
 color:white;
 text-decoration:none;
 border-radius:6px;
+font-weight:bold;
+transition:0.2s;
 }
 
 .backBtn:hover{
-background:#3367d6;
+background:#3a73d8;
+}
+
+/* ---------- DARK MODE ---------- */
+
+body.dark{
+background:#1e1e1e;
+color:#ddd;
+}
+
+body.dark .container{
+background:#2a2a2a;
+box-shadow:none;
+}
+
+body.dark h2{
+border-bottom:1px solid #444;
+}
+
+body.dark .feature{
+background:#333;
+}
+
+body.dark .tip{
+background:#3a3a3a;
+border-left:4px solid #ffc107;
+}
+
+/* ---------- MOBILE ---------- */
+
+@media (max-width:700px){
+
+.container{
+padding:25px;
+}
+
+h1{
+font-size:24px;
+}
+
 }
 
 </style>
@@ -73,168 +145,139 @@ background:#3367d6;
 
 <div class="container">
 
-<h1>Chat Application – User Guide</h1>
+<h1>Chat Application – Help Guide</h1>
 
 <p>
 This guide explains how to use the Chat Application and describes the features currently available.
-The platform allows users to communicate in real time, customize their profile appearance, and interact using message reactions and emojis.
+The system allows users to communicate in real time, customize their profile avatar, and view user activity status.
 </p>
 
 <h2>1. Signing In</h2>
 
-<p>
-To begin using the chat platform, users must sign in with their Google account.
-</p>
+<p>To begin using the application:</p>
 
 <ul>
 <li>Open the login page.</li>
-<li>Select <strong>Login with Google</strong>.</li>
-<li>Choose your Google account.</li>
-<li>You will automatically be redirected to the chat interface.</li>
+<li>Click <strong>Login with Google</strong>.</li>
+<li>Select your Google account.</li>
+<li>You will be redirected to the chat interface.</li>
 </ul>
 
-<p>
-After signing in for the first time, your account is created automatically within the system.
-</p>
-
+<p>Your account is automatically created the first time you log in.</p>
 
 <h2>2. User List</h2>
 
-<p>
-The left panel of the chat interface displays a list of available users.
-</p>
+<p>The left panel displays all users available in the chat system.</p>
 
 <ul>
-<li>Each user entry includes their display name and profile picture.</li>
-<li>Select a user to start a private conversation.</li>
-<li>The chat window will update to display the conversation.</li>
+<li>Each user has a profile avatar.</li>
+<li>You can see whether a user is <strong>Online</strong>.</li>
+<li>If offline, their <strong>Last Seen</strong> time is shown.</li>
+<li>Click a user to start a conversation.</li>
 </ul>
-
 
 <h2>3. Sending Messages</h2>
 
-<p>
-Messages can be sent instantly and appear in real time for both participants.
-</p>
+<p>Messages are delivered instantly between users.</p>
 
 <ul>
-<li>Type your message in the message input field.</li>
-<li>Press <strong>Enter</strong> or click the <strong>Send</strong> button.</li>
-<li>Your message will immediately appear in the chat.</li>
+<li>Type your message in the input field.</li>
+<li>Press <strong>Enter</strong> or click <strong>Send</strong>.</li>
+<li>Your message will appear in the chat immediately.</li>
 </ul>
 
+<div class="tip">
+Tip: Pressing <strong>Enter</strong> is the fastest way to send messages.
+</div>
 
 <h2>4. Emoji Support</h2>
 
-<p>
-The application includes an emoji picker for enhancing messages with expressive icons.
-</p>
+<p>You can add emojis to messages.</p>
 
 <ul>
-<li>Select the emoji button beside the message input.</li>
-<li>Choose an emoji from the emoji picker.</li>
-<li>The emoji will be inserted into your message.</li>
+<li>Click the <strong>😊 Emoji</strong> button.</li>
+<li>Select an emoji from the picker.</li>
+<li>The emoji will be added to your message.</li>
 </ul>
 
+<h2>5. Profile Avatar</h2>
 
-<h2>5. Message Reactions</h2>
-
-<p>
-Users can react to messages using quick emoji reactions.
-</p>
-
-<div class="feature">
-
-Available reactions include:
+<p>You can upload a custom avatar.</p>
 
 <ul>
-<li>👍 Like</li>
-<li>❤️ Love</li>
-<li>😂 Laugh</li>
-<li>😮 Surprise</li>
-<li>😢 Sad</li>
+<li>Click the <strong>Upload</strong> button.</li>
+<li>Select an image or MP4 file.</li>
+<li>Your avatar updates instantly.</li>
 </ul>
 
-</div>
-
-<p>
-Reactions appear below the message and update instantly for all participants.
-</p>
-
-
-<h2>6. Profile Picture Customization</h2>
-
-<p>
-Users can personalize their profile appearance by uploading a custom profile picture.
-</p>
-
-<ul>
-<li>Click the <strong>Upload</strong> button in the chat interface.</li>
-<li>Select an image or MP4 video file.</li>
-<li>Your profile picture will update automatically.</li>
-</ul>
-
-<p>
-Supported formats include:
-</p>
+<p>Supported formats:</p>
 
 <ul>
 <li>PNG</li>
 <li>JPG / JPEG</li>
-<li>MP4 (looping video avatars)</li>
+<li>MP4 (video avatars)</li>
 </ul>
 
-<p>
-Your profile picture will be visible:
-</p>
+<h2>6. Nicknames</h2>
+
+<p>You can assign custom nicknames to users.</p>
 
 <ul>
-<li>Next to your messages</li>
-<li>In the user list</li>
-<li>Beside the profile upload button</li>
+<li>Double-click a user in the user list.</li>
+<li>Enter the nickname.</li>
+<li>The nickname will replace the original name for you.</li>
 </ul>
 
+<div class="tip">
+Nicknames are visible only to you.
+</div>
 
-<h2>7. Real-Time Communication</h2>
+<h2>7. Dark Mode</h2>
 
-<p>
-The chat platform operates in real time. This means:
-</p>
+<p>The chat application includes a dark theme.</p>
+
+<ul>
+<li>Click the <strong>🌙</strong> button in the chat header.</li>
+<li>The interface switches between light and dark mode.</li>
+<li>Your preference is saved automatically.</li>
+</ul>
+
+<h2>8. Real-Time Updates</h2>
+
+<p>The chat system updates automatically.</p>
 
 <ul>
 <li>Messages appear instantly.</li>
-<li>Reactions update immediately.</li>
-<li>Profile changes are visible without refreshing the page.</li>
+<li>User status updates in real time.</li>
+<li>Profile changes appear immediately.</li>
 </ul>
 
+<h2>9. Current Features</h2>
 
-<h2>8. Current Features</h2>
-
-<p>
-The following features are currently implemented within the application:
-</p>
+<div class="feature">
 
 <ul>
-<li>Google account authentication</li>
-<li>Real-time private messaging</li>
+<li>Google authentication login</li>
+<li>Private real-time messaging</li>
+<li>Online / last seen status</li>
 <li>Emoji picker</li>
-<li>Message reactions</li>
-<li>Custom profile pictures</li>
-<li>Video profile avatars (MP4)</li>
-<li>Live user list</li>
+<li>Custom avatars</li>
+<li>Video avatars</li>
+<li>User nickname system</li>
+<li>Dark mode support</li>
+<li>Instant message delivery</li>
+<li>Automatic chat scrolling</li>
 </ul>
 
+</div>
 
-<h2>9. Troubleshooting</h2>
-
-<p>If you encounter issues while using the application:</p>
+<h2>10. Troubleshooting</h2>
 
 <ul>
-<li>Refresh the page.</li>
-<li>Ensure your internet connection is stable.</li>
-<li>Sign out and sign in again if necessary.</li>
+<li>Refresh the page if messages stop updating.</li>
+<li>Check your internet connection.</li>
+<li>Sign out and sign in again.</li>
 </ul>
-
 
 <a class="backBtn" href="index.html">Return to Login</a>
 
