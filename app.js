@@ -69,37 +69,39 @@ const myProfilePic = document.getElementById("myProfilePic");
 
 /* ---------------- STATE ---------------- */
 
-let currentUser = null;
-let currentFriend = null;
-let chatID = null;
+let currentUser=null;
+let currentFriend=null;
+let chatID=null;
 
-let unsubscribeUsers = null;
-let unsubscribeMessages = null;
+let unsubscribeUsers=null;
+let unsubscribeMessages=null;
 
 
 /* ---------------- LOGIN ---------------- */
 
-if (googleBtn) {
+if(googleBtn){
 
-googleBtn.onclick = async () => {
+googleBtn.onclick=async()=>{
 
 try{
 
-const res = await signInWithPopup(auth, provider);
-const user = res.user;
+const res=await signInWithPopup(auth,provider);
+const user=res.user;
 
 await setDoc(doc(db,"users",user.uid),{
-name:user.displayName || "User",
-email:user.email || "",
+name:user.displayName,
+email:user.email,
 photo:user.photoURL || DEFAULT_PFP,
-videoPhoto:""
+videoPhoto:"",
+online:true,
+lastSeen:Date.now()
 },{merge:true});
 
-window.location = "chat.html";
+window.location="chat.html";
 
 }catch(err){
 
-console.error("Login error:",err);
+console.error(err);
 alert("Login failed");
 
 }
@@ -111,33 +113,36 @@ alert("Login failed");
 
 /* ---------------- AUTH ---------------- */
 
-onAuthStateChanged(auth, async (user)=>{
+onAuthStateChanged(auth,async(user)=>{
 
 if(!user) return;
 
-currentUser = user;
+currentUser=user;
 
-try{
-
-const ref = doc(db,"users",user.uid);
-
-const snap = await getDoc(ref);
+const ref=doc(db,"users",user.uid);
+const snap=await getDoc(ref);
 
 let data={};
 
 if(!snap.exists()){
 
 data={
-name:user.displayName || "User",
-email:user.email || "",
+name:user.displayName,
+email:user.email,
 photo:user.photoURL || DEFAULT_PFP,
-videoPhoto:""
+videoPhoto:"",
+online:true,
+lastSeen:Date.now()
 };
 
 await setDoc(ref,data);
 
 }else{
+
 data=snap.data();
+
+await updateDoc(ref,{online:true});
+
 }
 
 renderAvatar(
@@ -148,9 +153,23 @@ data.videoPhoto || ""
 
 loadUsers();
 
-}catch(err){
-console.error(err);
-}
+});
+
+
+/* ---------------- ONLINE STATUS ---------------- */
+
+window.addEventListener("beforeunload",async()=>{
+
+if(!currentUser) return;
+
+try{
+
+await updateDoc(doc(db,"users",currentUser.uid),{
+online:false,
+lastSeen:Date.now()
+});
+
+}catch(e){}
 
 });
 
@@ -159,29 +178,28 @@ console.error(err);
 
 if(uploadBtn && profileUpload){
 
-uploadBtn.onclick = ()=> profileUpload.click();
+uploadBtn.onclick=()=>profileUpload.click();
 
-profileUpload.onchange = ()=>{
+profileUpload.onchange=()=>{
 
-const file = profileUpload.files[0];
+const file=profileUpload.files[0];
 if(!file) return;
 
-/* file size limit (2MB) */
+if(file.size>2*1024*1024){
 
-if(file.size > 2*1024*1024){
-alert("File too large (max 2MB)");
+alert("File must be under 2MB");
 return;
+
 }
 
-const reader = new FileReader();
+const reader=new FileReader();
 
-reader.onload = async (e)=>{
+reader.onload=async(e)=>{
 
-const base64 = e.target.result;
+const base64=e.target.result;
+const ref=doc(db,"users",currentUser.uid);
 
 try{
-
-const ref = doc(db,"users",currentUser.uid);
 
 if(file.type==="video/mp4"){
 
@@ -200,12 +218,14 @@ renderAvatar(myProfilePic,base64,"");
 
 }else{
 
-alert("Only image or MP4 allowed");
+alert("Only images or MP4 allowed");
 
 }
 
 }catch(err){
-console.error("Upload error:",err);
+
+console.error(err);
+
 }
 
 };
@@ -235,10 +255,6 @@ vid.loop=true;
 vid.muted=true;
 vid.playsInline=true;
 
-vid.style.width="100%";
-vid.style.height="100%";
-vid.style.objectFit="cover";
-
 container.appendChild(vid);
 
 }else{
@@ -247,17 +263,22 @@ const img=document.createElement("img");
 
 img.src=image || DEFAULT_PFP;
 
-img.onerror=()=>{
-img.src=DEFAULT_PFP;
-};
-
-img.style.width="100%";
-img.style.height="100%";
-img.style.objectFit="cover";
+img.onerror=()=>{ img.src=DEFAULT_PFP };
 
 container.appendChild(img);
 
 }
+
+}
+
+
+/* ---------------- TIME FORMAT ---------------- */
+
+function formatLastSeen(time){
+
+const d=new Date(time);
+
+return "Last seen "+d.toLocaleDateString()+" "+d.toLocaleTimeString();
 
 }
 
@@ -270,7 +291,7 @@ if(!usersList) return;
 
 if(unsubscribeUsers) unsubscribeUsers();
 
-unsubscribeUsers = onSnapshot(collection(db,"users"),(snap)=>{
+unsubscribeUsers=onSnapshot(collection(db,"users"),(snap)=>{
 
 usersList.innerHTML="";
 
@@ -278,10 +299,13 @@ snap.forEach(docu=>{
 
 if(docu.id===currentUser.uid) return;
 
-const user=docu.data() || {};
+const user=docu.data();
 
 const row=document.createElement("div");
 row.className="userRow";
+
+
+/* avatar */
 
 const avatar=document.createElement("div");
 avatar.className="userAvatarBox";
@@ -292,11 +316,53 @@ user.photo || DEFAULT_PFP,
 user.videoPhoto || ""
 );
 
+
+/* status dot */
+
+const status=document.createElement("div");
+
+status.style.width="10px";
+status.style.height="10px";
+status.style.borderRadius="50%";
+status.style.marginLeft="-12px";
+status.style.marginTop="28px";
+status.style.border="2px solid white";
+
+status.style.background=user.online ? "limegreen" : "gray";
+
+
+/* name */
+
 const name=document.createElement("span");
-name.textContent=user.name || "User";
+name.textContent=user.name;
+
+
+/* last seen */
+
+const last=document.createElement("div");
+last.style.fontSize="11px";
+last.style.color="gray";
+
+if(user.online){
+
+last.textContent="Online";
+
+}else{
+
+last.textContent=formatLastSeen(user.lastSeen);
+
+}
+
+
+const textWrap=document.createElement("div");
+
+textWrap.appendChild(name);
+textWrap.appendChild(last);
+
 
 row.appendChild(avatar);
-row.appendChild(name);
+row.appendChild(status);
+row.appendChild(textWrap);
 
 row.onclick=()=>openChat(docu.id,user.name);
 
@@ -329,8 +395,6 @@ listenMessages();
 /* ---------------- LISTEN MESSAGES ---------------- */
 
 function listenMessages(){
-
-if(!chatBox) return;
 
 const q=query(
 collection(db,"chats",chatID,"messages"),
@@ -365,14 +429,11 @@ bubble.className="msgBubble";
 
 const text=document.createElement("div");
 text.className="msgText";
-text.textContent=m.text || "";
+text.textContent=m.text;
 
 const time=document.createElement("div");
 time.className="messageTime";
-
-const date=m.time ? new Date(m.time) : new Date();
-
-time.textContent=date.toLocaleTimeString();
+time.textContent=new Date(m.time).toLocaleTimeString();
 
 bubble.appendChild(text);
 bubble.appendChild(time);
@@ -395,16 +456,13 @@ chatBox.scrollTop=chatBox.scrollHeight;
 
 async function sendMessage(){
 
-if(!input || !currentUser || !chatID) return;
+if(!input || !chatID) return;
 
 const text=input.value.trim();
 
 if(!text) return;
 
-try{
-
 const snap=await getDoc(doc(db,"users",currentUser.uid));
-
 const data=snap.data() || {};
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
@@ -419,10 +477,6 @@ time:Date.now()
 
 input.value="";
 
-}catch(err){
-console.error("Send error:",err);
-}
-
 }
 
 
@@ -433,44 +487,12 @@ if(input){
 input.addEventListener("keydown",(e)=>{
 
 if(e.key==="Enter"){
+
 e.preventDefault();
 sendMessage();
+
 }
 
 });
-
-}
-
-
-/* ---------------- EMOJI PICKER ---------------- */
-
-if(emojiBtn && emojiPicker){
-
-emojiBtn.onclick=()=>{
-
-emojiPicker.style.display=
-emojiPicker.style.display==="block"
-? "none"
-: "block";
-
-};
-
-}
-
-
-/* ---------------- EMOJI LIBRARY ---------------- */
-
-if(window.EmojiMart && emojiPicker){
-
-const picker=new EmojiMart.Picker({
-
-onEmojiSelect:(emoji)=>{
-if(input) input.value += emoji.native;
-}
-
-});
-
-emojiPicker.appendChild(picker);
-emojiPicker.style.display="none";
 
 }
