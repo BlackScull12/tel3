@@ -334,7 +334,23 @@ status.style.background=user.online ? "limegreen" : "gray";
 /* name */
 
 const name=document.createElement("span");
-name.textContent=user.name;
+  
+/* nickname support */
+
+let displayName=user.name;
+
+try{
+
+const nickRef = doc(db,"nicknames",currentUser.uid,"names",docu.id);
+const nickSnap = await getDoc(nickRef);
+
+if(nickSnap.exists()){
+displayName = nickSnap.data().nickname;
+}
+
+}catch(e){}
+
+name.textContent=displayName;
 
 
 /* last seen */
@@ -364,7 +380,30 @@ row.appendChild(avatar);
 row.appendChild(status);
 row.appendChild(textWrap);
 
-row.onclick=()=>openChat(docu.id,user.name);
+row.onclick=()=>openChat(docu.id,displayName);
+  
+/* nickname edit */
+
+row.ondblclick = async ()=>{
+
+const nick = prompt("Enter nickname");
+
+if(!nick) return;
+
+try{
+
+await setDoc(
+doc(db,"nicknames",currentUser.uid,"names",docu.id),
+{ nickname:nick }
+);
+
+loadUsers();
+
+}catch(e){
+console.error(e);
+}
+
+};
 
 usersList.appendChild(row);
 
