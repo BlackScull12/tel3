@@ -26,12 +26,12 @@ onSnapshot
 /* ---------------- FIREBASE CONFIG ---------------- */
 
 const firebaseConfig = {
-apiKey:"AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
-authDomain:"chatgithub-e838d.firebaseapp.com",
-projectId:"chatgithub-e838d",
-storageBucket:"chatgithub-e838d.firebasestorage.app",
-messagingSenderId:"755589384017",
-appId:"1:755589384017:web:6af4c6d223d646cf36f570"
+apiKey: "AIzaSyAxt94UyMn8AP8PFaSHPJ29JnZQ2KI3kZw",
+authDomain: "chatgithub-e838d.firebaseapp.com",
+projectId: "chatgithub-e838d",
+storageBucket: "chatgithub-e838d.firebasestorage.app",
+messagingSenderId: "755589384017",
+appId: "1:755589384017:web:6af4c6d223d646cf36f570"
 };
 
 
@@ -40,17 +40,9 @@ appId:"1:755589384017:web:6af4c6d223d646cf36f570"
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
-
-/* ---------------- DEFAULT PFP ---------------- */
-
-const DEFAULT_PFP = "https://i.imgur.com/HeIi0wU.png";
 
 
 /* ---------------- DOM ---------------- */
-
-const googleBtn = document.getElementById("googleLogin");
 
 const usersList = document.getElementById("usersList");
 const chatBox = document.getElementById("chatBox");
@@ -59,74 +51,39 @@ const chatUser = document.getElementById("chatUser");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 
-const emojiBtn = document.getElementById("emojiBtn");
-const emojiPicker = document.getElementById("emojiPicker");
-
-const profileUpload = document.getElementById("profileUpload");
 const uploadBtn = document.getElementById("uploadBtn");
+const profileUpload = document.getElementById("profileUpload");
 const myProfilePic = document.getElementById("myProfilePic");
 
 
 /* ---------------- STATE ---------------- */
 
-let currentUser=null;
-let currentFriend=null;
-let chatID=null;
+let currentUser = null;
+let currentFriend = null;
+let chatID = null;
 
-let unsubscribeUsers=null;
-let unsubscribeMessages=null;
+let unsubscribeUsers = null;
+let unsubscribeMessages = null;
 
-
-/* ---------------- LOGIN ---------------- */
-
-if(googleBtn){
-
-googleBtn.onclick=async()=>{
-
-try{
-
-const res=await signInWithPopup(auth,provider);
-const user=res.user;
-
-await setDoc(doc(db,"users",user.uid),{
-name:user.displayName,
-email:user.email,
-photo:user.photoURL || DEFAULT_PFP,
-videoPhoto:"",
-online:true,
-lastSeen:Date.now()
-},{merge:true});
-
-window.location="chat.html";
-
-}catch(err){
-
-console.error(err);
-alert("Login failed");
-
-}
-
-};
-
-}
+const DEFAULT_PFP = "https://i.imgur.com/HeIi0wU.png";
 
 
 /* ---------------- AUTH ---------------- */
 
-onAuthStateChanged(auth,async(user)=>{
+onAuthStateChanged(auth, async (user)=>{
 
 if(!user) return;
 
-currentUser=user;
+currentUser = user;
 
-const ref=doc(db,"users",user.uid);
-const snap=await getDoc(ref);
+const ref = doc(db,"users",user.uid);
+const snap = await getDoc(ref);
 
-let data={};
+let data;
 
 if(!snap.exists()){
 
-data={
+data = {
 name:user.displayName,
 email:user.email,
 photo:user.photoURL || DEFAULT_PFP,
@@ -139,17 +96,23 @@ await setDoc(ref,data);
 
 }else{
 
-data=snap.data();
+data = snap.data();
 
-await updateDoc(ref,{online:true});
+await updateDoc(ref,{
+online:true
+});
 
 }
+
+/* render profile */
 
 renderAvatar(
 myProfilePic,
 data.photo || DEFAULT_PFP,
 data.videoPhoto || ""
 );
+
+/* load users */
 
 loadUsers();
 
@@ -158,7 +121,7 @@ loadUsers();
 
 /* ---------------- ONLINE STATUS ---------------- */
 
-window.addEventListener("beforeunload",async()=>{
+window.addEventListener("beforeunload", async ()=>{
 
 if(!currentUser) return;
 
@@ -176,38 +139,40 @@ lastSeen:Date.now()
 
 /* ---------------- PROFILE UPLOAD ---------------- */
 
-if(uploadBtn && profileUpload){
+if(uploadBtn){
 
-uploadBtn.onclick=()=>profileUpload.click();
+uploadBtn.onclick = ()=>profileUpload.click();
 
-profileUpload.onchange=()=>{
+profileUpload.onchange = ()=>{
 
-const file=profileUpload.files[0];
+const file = profileUpload.files[0];
+
 if(!file) return;
 
-if(file.size>2*1024*1024){
+if(file.size > 2 * 1024 * 1024){
 
 alert("File must be under 2MB");
 return;
 
 }
 
-const reader=new FileReader();
+const reader = new FileReader();
 
-reader.onload=async(e)=>{
+reader.onload = async (e)=>{
 
-const base64=e.target.result;
-const ref=doc(db,"users",currentUser.uid);
+const base64 = e.target.result;
+
+const ref = doc(db,"users",currentUser.uid);
 
 try{
 
-if(file.type==="video/mp4"){
+if(file.type === "video/mp4"){
 
 await updateDoc(ref,{videoPhoto:base64});
 
 renderAvatar(myProfilePic,"",base64);
 
-}else if(file.type.startsWith("image/")){
+}else{
 
 await updateDoc(ref,{
 photo:base64,
@@ -215,10 +180,6 @@ videoPhoto:""
 });
 
 renderAvatar(myProfilePic,base64,"");
-
-}else{
-
-alert("Only images or MP4 allowed");
 
 }
 
@@ -245,7 +206,7 @@ if(!container) return;
 
 container.innerHTML="";
 
-if(video && video.length>20){
+if(video){
 
 const vid=document.createElement("video");
 
@@ -263,7 +224,9 @@ const img=document.createElement("img");
 
 img.src=image || DEFAULT_PFP;
 
-img.onerror=()=>{ img.src=DEFAULT_PFP };
+img.onerror=()=>{
+img.src=DEFAULT_PFP;
+};
 
 container.appendChild(img);
 
@@ -272,13 +235,15 @@ container.appendChild(img);
 }
 
 
-/* ---------------- TIME FORMAT ---------------- */
+/* ---------------- LAST SEEN FORMAT ---------------- */
 
 function formatLastSeen(time){
 
-const d=new Date(time);
+if(!time) return "";
 
-return "Last seen "+d.toLocaleDateString()+" "+d.toLocaleTimeString();
+const d = new Date(time);
+
+return "Last seen " + d.toLocaleDateString() + " " + d.toLocaleTimeString();
 
 }
 
@@ -287,45 +252,43 @@ return "Last seen "+d.toLocaleDateString()+" "+d.toLocaleTimeString();
 
 function loadUsers(){
 
-if(!usersList) return;
-
 if(unsubscribeUsers) unsubscribeUsers();
 
-unsubscribeUsers=onSnapshot(collection(db,"users"),async(snap)=>{
+unsubscribeUsers = onSnapshot(collection(db,"users"), async (snap)=>{
 
 usersList.innerHTML="";
 
 for(const docu of snap.docs){
 
-if(docu.id===currentUser.uid) continue;
+if(docu.id === currentUser.uid) continue;
 
-const user=docu.data();
+const user = docu.data();
+
+let displayName = user.name;
 
 /* nickname lookup */
 
-let displayName=user.name;
-
 try{
 
-const nickRef=doc(db,"nicknames",currentUser.uid,"names",docu.id);
-const nickSnap=await getDoc(nickRef);
+const nickRef = doc(db,"nicknames",currentUser.uid,"names",docu.id);
+const nickSnap = await getDoc(nickRef);
 
 if(nickSnap.exists()){
-displayName=nickSnap.data().nickname;
+displayName = nickSnap.data().nickname;
 }
 
 }catch(e){}
 
 
-/* row */
+/* create row */
 
-const row=document.createElement("div");
+const row = document.createElement("div");
 row.className="userRow";
 
 
 /* avatar */
 
-const avatar=document.createElement("div");
+const avatar = document.createElement("div");
 avatar.className="userAvatarBox";
 
 renderAvatar(
@@ -335,54 +298,42 @@ user.videoPhoto || ""
 );
 
 
-/* status dot */
+/* status */
 
-const status=document.createElement("div");
+const status = document.createElement("div");
+status.className="statusDot";
 
-status.style.width="10px";
-status.style.height="10px";
-status.style.borderRadius="50%";
-status.style.marginLeft="-12px";
-status.style.marginTop="28px";
-status.style.border="2px solid white";
-
-status.style.background=user.online ? "limegreen" : "gray";
+status.style.background = user.online ? "limegreen" : "gray";
 
 
 /* name */
 
-const name=document.createElement("span");
-name.textContent=displayName;
+const name = document.createElement("div");
+name.textContent = displayName;
 
 
 /* last seen */
 
-const last=document.createElement("div");
-last.style.fontSize="11px";
-last.style.color="gray";
+const last = document.createElement("div");
+last.className="lastSeen";
 
 if(user.online){
-
 last.textContent="Online";
-
 }else{
-
 last.textContent=formatLastSeen(user.lastSeen);
-
 }
 
+const text = document.createElement("div");
 
-const textWrap=document.createElement("div");
-
-textWrap.appendChild(name);
-textWrap.appendChild(last);
+text.appendChild(name);
+text.appendChild(last);
 
 
 /* nickname edit */
 
-row.ondblclick=async()=>{
+row.ondblclick = async ()=>{
 
-const nick=prompt("Enter nickname");
+const nick = prompt("Enter nickname");
 
 if(!nick) return;
 
@@ -396,11 +347,14 @@ loadUsers();
 };
 
 
+/* open chat */
+
+row.onclick = ()=>openChat(docu.id,displayName);
+
+
 row.appendChild(avatar);
 row.appendChild(status);
-row.appendChild(textWrap);
-
-row.onclick=()=>openChat(docu.id,displayName);
+row.appendChild(text);
 
 usersList.appendChild(row);
 
@@ -415,43 +369,46 @@ usersList.appendChild(row);
 
 function openChat(uid,name){
 
-currentFriend=uid;
+currentFriend = uid;
 
-chatID=[currentUser.uid,uid].sort().join("_");
+chatID = [currentUser.uid,uid].sort().join("_");
 
-if(chatUser) chatUser.textContent=name;
-
-if(unsubscribeMessages) unsubscribeMessages();
+chatUser.textContent = name;
 
 listenMessages();
 
 }
 
 
-/* ---------------- LISTEN MESSAGES ---------------- */
+/* ---------------- MESSAGES ---------------- */
 
 function listenMessages(){
 
-const q=query(
+if(unsubscribeMessages) unsubscribeMessages();
+
+const q = query(
 collection(db,"chats",chatID,"messages"),
 orderBy("time")
 );
 
-unsubscribeMessages=onSnapshot(q,(snap)=>{
+unsubscribeMessages = onSnapshot(q,(snap)=>{
 
 chatBox.innerHTML="";
 
 snap.forEach(d=>{
 
-const m=d.data();
+const m = d.data();
 
-const msg=document.createElement("div");
+const msg = document.createElement("div");
 
-msg.className=
-"message "+(m.sender===currentUser.uid?"sender":"receiver");
+msg.className = m.sender === currentUser.uid
+? "message sender"
+: "message receiver";
 
 
-const avatar=document.createElement("div");
+/* avatar */
+
+const avatar = document.createElement("div");
 avatar.className="msgAvatarBox";
 
 renderAvatar(
@@ -460,28 +417,32 @@ m.photo || DEFAULT_PFP,
 m.videoPhoto || ""
 );
 
-const bubble=document.createElement("div");
-bubble.className="msgBubble";
 
-const text=document.createElement("div");
-text.className="msgText";
-text.textContent=m.text;
+/* bubble */
 
-const time=document.createElement("div");
-time.className="messageTime";
-time.textContent=new Date(m.time).toLocaleTimeString();
+const bubble = document.createElement("div");
+bubble.className="bubble";
 
-bubble.appendChild(text);
-bubble.appendChild(time);
+bubble.textContent = m.text;
+
+
+/* time */
+
+const time = document.createElement("div");
+time.className="msgTime";
+
+time.textContent = new Date(m.time).toLocaleTimeString();
+
 
 msg.appendChild(avatar);
 msg.appendChild(bubble);
+msg.appendChild(time);
 
 chatBox.appendChild(msg);
 
 });
 
-chatBox.scrollTop=chatBox.scrollHeight;
+chatBox.scrollTop = chatBox.scrollHeight;
 
 });
 
@@ -494,12 +455,13 @@ async function sendMessage(){
 
 if(!input || !chatID) return;
 
-const text=input.value.trim();
+const text = input.value.trim();
 
 if(!text) return;
 
-const snap=await getDoc(doc(db,"users",currentUser.uid));
-const data=snap.data() || {};
+const snap = await getDoc(doc(db,"users",currentUser.uid));
+
+const data = snap.data() || {};
 
 await addDoc(collection(db,"chats",chatID,"messages"),{
 
@@ -516,19 +478,16 @@ input.value="";
 }
 
 
-if(sendBtn) sendBtn.onclick=sendMessage;
+if(sendBtn) sendBtn.onclick = sendMessage;
 
 if(input){
 
 input.addEventListener("keydown",(e)=>{
 
 if(e.key==="Enter"){
-
-e.preventDefault();
 sendMessage();
-
 }
 
 });
 
-}
+}    
